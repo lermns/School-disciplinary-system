@@ -34,6 +34,7 @@ import {
   TooltipContent,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 
 interface NavItem {
   label: string
@@ -146,7 +147,7 @@ export function AppSidebar() {
       {/* Header */}
       <div className={cn("flex items-center gap-3 p-4", collapsed && "justify-center px-2")}>
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-          <Shield className="size-5 text-sidebar-primary-foreground" />
+          <Image src={"/images/logodorado.png"} alt="El Dorado" className="size-full object-cover" width={"100"} height={"100"} />
         </div>
         {!collapsed && (
           <div className="min-w-0">

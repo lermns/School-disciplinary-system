@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, type ReactNode, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import type { Usuario } from "@/lib/types"
 import { mockUsuarios } from "@/lib/mock-data"
@@ -15,15 +15,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Usuario | null>(() => {
-    if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem("colegio_user")
-      return stored ? JSON.parse(stored) : null
-    }
-    return null
-  })
+  const [user, setUser] = useState<Usuario | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("colegio_user")
+    if (stored) {
+      setUser(JSON.parse(stored))
+    }
+  }, [])
 
   const login = useCallback(
     async (email: string, _password: string) => {

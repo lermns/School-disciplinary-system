@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import Image from "next/image"
 
 const loginSchema = z.object({
   email: z.string().email("Ingresa un correo electrónico válido"),
@@ -51,7 +52,7 @@ export default function LoginPage() {
       <div className="relative hidden w-[60%] lg:block">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url(/images/school-building.jpg)" }}
+          style={{ backgroundImage: "url(/images/eldorado.jpg)" }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-[oklch(0.18_0.05_250/0.85)] via-[oklch(0.2_0.06_250/0.7)] to-[oklch(0.15_0.04_250/0.9)]" />
 
@@ -60,11 +61,11 @@ export default function LoginPage() {
           <div>
             <div className="flex items-center gap-3">
               <div className="flex size-12 items-center justify-center rounded-xl bg-gold/20 backdrop-blur-sm">
-                <Shield className="size-7 text-gold" />
+                <Image src={"/images/logodorado.png"} alt="El Dorado" className="size-full object-cover" width={"10"} height={"10"}/>
               </div>
               <div>
                 <h1 className="font-serif text-3xl font-bold tracking-tight text-white">
-                  Colegio El Dorado
+                  Modulo Educativo El Dorado
                 </h1>
                 <p className="text-base font-medium text-gold/90">
                   Comisión Disciplinaria
@@ -82,7 +83,7 @@ export default function LoginPage() {
                 }
               </p>
               <footer className="text-sm font-medium text-gold/80">
-                {"-- Rector Carlos Mendoza, Colegio El Dorado"}
+                {"-- Director Pedro Ramos, Modulo Educativo El Dorado"}
               </footer>
             </blockquote>
           </div>
@@ -90,7 +91,7 @@ export default function LoginPage() {
           {/* Bottom - Copyright */}
           <p className="text-xs text-white/50">
             {
-              "© 2024 Colegio El Dorado. Todos los derechos reservados. Sistema de Gestión Disciplinaria v1.0"
+              "© 2026 Todos los derechos reservados by Leonardo Ramos B."
             }
           </p>
         </div>
@@ -105,7 +106,7 @@ export default function LoginPage() {
           </div>
           <div>
             <h1 className="font-serif text-lg font-bold text-foreground">
-              Colegio El Dorado
+              Modulo Educativo El Dorado
             </h1>
             <p className="text-xs text-muted-foreground">
               Comisión Disciplinaria
@@ -134,14 +135,14 @@ export default function LoginPage() {
               {/* Email */}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                  Correo electrónico
+                  Nombre de usuario
                 </Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="email"
-                    type="email"
-                    placeholder="correo@colegiodorado.edu"
+                    type="text"
+                    placeholder="nombre de usuario"
                     className="h-11 pl-10"
                     {...register("email")}
                   />
@@ -188,7 +189,7 @@ export default function LoginPage() {
               </div>
 
               {/* Remember + Forgot */}
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Checkbox id="remember" />
                   <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
@@ -201,7 +202,7 @@ export default function LoginPage() {
                 >
                   {"¿Olvidaste tu contraseña?"}
                 </button>
-              </div>
+              </div> */}
 
               {/* Submit */}
               <Button
