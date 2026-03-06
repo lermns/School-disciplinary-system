@@ -4,7 +4,7 @@ import {
   Users,
   AlertTriangle,
   XCircle,
-  CheckCircle,
+  ShieldAlert,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -34,18 +34,18 @@ import {
   mockTiposFalta,
   getInfraccionesConDatos,
 } from "@/lib/mock-data"
-import { getGravedadConfig, getEstadoConfig, formatDate } from "@/lib/helpers"
+import { getGravedadConfig, formatDate } from "@/lib/helpers"
 
 const infracciones = getInfraccionesConDatos()
 
 // Stats
 const totalEstudiantes = mockEstudiantes.filter((e) => e.activo).length
-const infraccionesEsteMes = infracciones.length
-const infraccionesGraves = infracciones.filter(
+const infraccionesTotal = infracciones.length
+const infraccionesMuyGraves = infracciones.filter(
   (i) => i.tipo_falta?.gravedad === "muy_grave"
 ).length
-const casosResueltos = infracciones.filter(
-  (i) => i.estado === "resuelto"
+const infraccionesGraves = infracciones.filter(
+  (i) => i.tipo_falta?.gravedad === "grave"
 ).length
 
 // Chart data: infracciones por curso
@@ -58,7 +58,7 @@ const infraccionesPorCurso = Object.entries(cursoMap)
   .map(([curso, count]) => ({ curso, count }))
   .sort((a, b) => a.curso.localeCompare(b.curso))
 
-// Chart data: distribution by type
+// Chart data: distribución por tipo
 const tipoMap: Record<string, number> = {}
 infracciones.forEach((inf) => {
   const tipo = inf.tipo_falta?.nombre || "Otro"
@@ -86,25 +86,25 @@ const stats = [
     iconColor: "text-chart-2",
   },
   {
-    label: "Infracciones este mes",
-    value: infraccionesEsteMes,
+    label: "Infracciones registradas",
+    value: infraccionesTotal,
     icon: AlertTriangle,
     iconBg: "bg-warning/10",
     iconColor: "text-warning",
   },
   {
-    label: "Infracciones graves",
+    label: "Faltas graves",
     value: infraccionesGraves,
+    icon: ShieldAlert,
+    iconBg: "bg-warning/10",
+    iconColor: "text-warning",
+  },
+  {
+    label: "Faltas muy graves",
+    value: infraccionesMuyGraves,
     icon: XCircle,
     iconBg: "bg-destructive/10",
     iconColor: "text-destructive",
-  },
-  {
-    label: "Casos resueltos",
-    value: casosResueltos,
-    icon: CheckCircle,
-    iconBg: "bg-success/10",
-    iconColor: "text-success",
   },
 ]
 
@@ -143,7 +143,6 @@ export default function AdminDashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Bar Chart */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
@@ -155,8 +154,8 @@ export default function AdminDashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={infraccionesPorCurso}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="curso" className="text-xs fill-muted-foreground" tick={{ fontSize: 12 }} />
-                  <YAxis className="text-xs fill-muted-foreground" tick={{ fontSize: 12 }} />
+                  <XAxis dataKey="curso" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
                   <RechartsTooltip
                     contentStyle={{
                       backgroundColor: "oklch(1 0 0)",
@@ -172,7 +171,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Donut Chart */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
@@ -207,11 +205,7 @@ export default function AdminDashboard() {
                       fontSize: "12px",
                     }}
                   />
-                  <Legend
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: "11px" }}
-                  />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: "11px" }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -235,8 +229,8 @@ export default function AdminDashboard() {
                   <TableHead className="hidden sm:table-cell">Curso</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="hidden md:table-cell">Gravedad</TableHead>
+                  <TableHead className="hidden lg:table-cell">Regente</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha</TableHead>
-                  <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -244,14 +238,13 @@ export default function AdminDashboard() {
                   const gravedad = inf.tipo_falta
                     ? getGravedadConfig(inf.tipo_falta.gravedad)
                     : null
-                  const estado = getEstadoConfig(inf.estado)
 
                   return (
                     <TableRow key={inf.id}>
                       <TableCell className="font-medium">
                         {inf.estudiante?.nombre_completo}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
+                      <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
                         {inf.estudiante?.curso} {inf.estudiante?.seccion}
                       </TableCell>
                       <TableCell className="text-sm">
@@ -259,21 +252,16 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {gravedad && (
-                          <Badge
-                            variant="outline"
-                            className={gravedad.className}
-                          >
+                          <Badge variant="outline" className={gravedad.className}>
                             {gravedad.label}
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground">
-                        {formatDate(inf.fecha)}
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                        {inf.regente?.nombre_completo}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={estado.className}>
-                          {estado.label}
-                        </Badge>
+                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                        {formatDate(inf.fecha)}
                       </TableCell>
                     </TableRow>
                   )

@@ -33,7 +33,7 @@ import { toast } from "sonner"
 
 const infracciones = getInfraccionesConDatos()
 
-// Monthly trend data (simulate)
+// Monthly trend data (simulado)
 const monthlyTrend = [
   { mes: "Jun", count: 3 },
   { mes: "Jul", count: 5 },
@@ -43,7 +43,7 @@ const monthlyTrend = [
   { mes: "Nov", count: 10 },
 ]
 
-// Infractions by course
+// Infracciones por curso
 const cursoMap: Record<string, number> = {}
 infracciones.forEach((inf) => {
   const curso = inf.estudiante?.curso || "N/A"
@@ -53,7 +53,7 @@ const infraccionesPorCurso = Object.entries(cursoMap)
   .map(([curso, count]) => ({ curso, count }))
   .sort((a, b) => a.curso.localeCompare(b.curso))
 
-// Top 10 students by infractions
+// Top 10 estudiantes con más infracciones
 const studentCountMap: Record<string, number> = {}
 mockInfracciones.forEach((inf) => {
   studentCountMap[inf.estudiante_id] =
@@ -68,12 +68,12 @@ const top10Students = Object.entries(studentCountMap)
     count,
   }))
 
-// Infractions by professor
-const profCountMap: Record<string, number> = {}
+// Infracciones por regente (antes profesor)
+const regenteCountMap: Record<string, number> = {}
 mockInfracciones.forEach((inf) => {
-  profCountMap[inf.profesor_id] = (profCountMap[inf.profesor_id] || 0) + 1
+  regenteCountMap[inf.regente_id] = (regenteCountMap[inf.regente_id] || 0) + 1
 })
-const infraccionesPorProfesor = Object.entries(profCountMap)
+const infraccionesPorRegente = Object.entries(regenteCountMap)
   .map(([id, count]) => ({
     nombre: mockUsuarios.find((u) => u.id === id)?.nombre_completo || "N/A",
     count,
@@ -110,7 +110,7 @@ export default function ReportesPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Monthly Trend */}
+        {/* Tendencia mensual */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
@@ -140,7 +140,7 @@ export default function ReportesPage() {
           </CardContent>
         </Card>
 
-        {/* By Course */}
+        {/* Por curso */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
@@ -170,7 +170,7 @@ export default function ReportesPage() {
 
       {/* Tables */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Top Students */}
+        {/* Top estudiantes */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
@@ -211,29 +211,27 @@ export default function ReportesPage() {
           </CardContent>
         </Card>
 
-        {/* By Professor */}
+        {/* Por regente */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
-              Infracciones por Profesor
+              Infracciones por Regente
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Profesor</TableHead>
+                  <TableHead>Regente</TableHead>
                   <TableHead className="text-right">Registradas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {infraccionesPorProfesor.map((prof) => (
-                  <TableRow key={prof.nombre}>
-                    <TableCell className="font-medium">
-                      {prof.nombre}
-                    </TableCell>
+                {infraccionesPorRegente.map((reg) => (
+                  <TableRow key={reg.nombre}>
+                    <TableCell className="font-medium">{reg.nombre}</TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="secondary">{prof.count}</Badge>
+                      <Badge variant="secondary">{reg.count}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

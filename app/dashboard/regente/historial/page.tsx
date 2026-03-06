@@ -14,20 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useAuth } from "@/lib/auth-context"
 import {
   mockInfracciones,
   mockEstudiantes,
   mockTiposFalta,
 } from "@/lib/mock-data"
-import { getGravedadConfig, getEstadoConfig, formatDate } from "@/lib/helpers"
+import { getGravedadConfig, formatDate } from "@/lib/helpers"
 
 function getInitials(name: string) {
   return name
@@ -38,13 +31,13 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
-export default function ProfesorHistorialPage() {
+export default function RegenteHistorialPage() {
   const { user } = useAuth()
   const [search, setSearch] = useState("")
-  const [filterEstado, setFilterEstado] = useState("todos")
 
+  // Filtrar por regente_id (antes era profesor_id)
   const myInfracciones = mockInfracciones
-    .filter((i) => i.profesor_id === user?.id)
+    .filter((i) => i.regente_id === user?.id)
     .map((inf) => ({
       ...inf,
       estudiante: mockEstudiantes.find((e) => e.id === inf.estudiante_id),
@@ -52,18 +45,14 @@ export default function ProfesorHistorialPage() {
     }))
 
   const filtered = myInfracciones.filter((inf) => {
-    const matchSearch =
+    return (
       search === "" ||
       inf.estudiante?.nombre_completo
         .toLowerCase()
         .includes(search.toLowerCase()) ||
       inf.tipo_falta?.nombre.toLowerCase().includes(search.toLowerCase()) ||
       inf.descripcion.toLowerCase().includes(search.toLowerCase())
-
-    const matchEstado =
-      filterEstado === "todos" || inf.estado === filterEstado
-
-    return matchSearch && matchEstado
+    )
   })
 
   return (
@@ -73,37 +62,26 @@ export default function ProfesorHistorialPage() {
           Mi Historial
         </h1>
         <p className="text-sm text-muted-foreground">
-          Infracciones que usted ha registrado como profesor.
+          Infracciones que usted ha registrado como regente.
         </p>
       </div>
 
-      {/* Filters */}
+      {/* Filtro */}
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por estudiante, tipo de falta..."
+              placeholder="Buscar por estudiante o tipo de falta..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select value={filterEstado} onValueChange={setFilterEstado}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="pendiente">Pendiente</SelectItem>
-              <SelectItem value="resuelto">Resuelto</SelectItem>
-              <SelectItem value="apelado">Apelado</SelectItem>
-            </SelectContent>
-          </Select>
         </CardContent>
       </Card>
 
-      {/* Table */}
+      {/* Tabla */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">
@@ -117,21 +95,16 @@ export default function ProfesorHistorialPage() {
                 <TableRow>
                   <TableHead>Estudiante</TableHead>
                   <TableHead>Tipo de Falta</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Gravedad
-                  </TableHead>
+                  <TableHead className="hidden md:table-cell">Gravedad</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="hidden xl:table-cell">
-                    Descripcion
-                  </TableHead>
+                  <TableHead className="hidden xl:table-cell">Descripción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={5}
                       className="py-8 text-center text-sm text-muted-foreground"
                     >
                       No se encontraron registros.
@@ -142,7 +115,6 @@ export default function ProfesorHistorialPage() {
                     const gravedad = inf.tipo_falta
                       ? getGravedadConfig(inf.tipo_falta.gravedad)
                       : null
-                    const estado = getEstadoConfig(inf.estado)
 
                     return (
                       <TableRow key={inf.id}>
@@ -151,15 +123,18 @@ export default function ProfesorHistorialPage() {
                             <Avatar className="size-7">
                               <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
                                 {inf.estudiante
-                                  ? getInitials(
-                                      inf.estudiante.nombre_completo
-                                    )
+                                  ? getInitials(inf.estudiante.nombre_completo)
                                   : "?"}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm font-medium">
-                              {inf.estudiante?.nombre_completo}
-                            </span>
+                            <div>
+                              <span className="text-sm font-medium">
+                                {inf.estudiante?.nombre_completo}
+                              </span>
+                              <p className="text-xs text-muted-foreground">
+                                {inf.estudiante?.curso} {inf.estudiante?.seccion}
+                              </p>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-sm">
@@ -167,24 +142,13 @@ export default function ProfesorHistorialPage() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           {gravedad && (
-                            <Badge
-                              variant="outline"
-                              className={gravedad.className}
-                            >
+                            <Badge variant="outline" className={gravedad.className}>
                               {gravedad.label}
                             </Badge>
                           )}
                         </TableCell>
                         <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
                           {formatDate(inf.fecha)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={estado.className}
-                          >
-                            {estado.label}
-                          </Badge>
                         </TableCell>
                         <TableCell className="hidden max-w-[250px] truncate text-sm text-muted-foreground xl:table-cell">
                           {inf.descripcion}

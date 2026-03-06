@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { toast } from "sonner"
-import { Send, AlertTriangle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { CheckCircle2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -17,240 +17,143 @@ import {
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/auth-context"
 import { mockEstudiantes, mockTiposFalta } from "@/lib/mock-data"
-import { getGravedadConfig } from "@/lib/helpers"
-import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
 
-export default function ProfesorRegistrarPage() {
+// Solo el regente puede registrar faltas leves
+const tiposFaltaLeves = mockTiposFalta.filter((tf) => tf.gravedad === "leve")
+
+export default function RegenteRegistrarPage() {
   const { user } = useAuth()
+  const router = useRouter()
+
   const [estudianteId, setEstudianteId] = useState("")
   const [tipoFaltaId, setTipoFaltaId] = useState("")
-  const [fecha, setFecha] = useState(
-    new Date().toISOString().split("T")[0]
-  )
+  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0])
   const [descripcion, setDescripcion] = useState("")
-  const [sancion, setSancion] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const selectedTipo = mockTiposFalta.find((tf) => tf.id === tipoFaltaId)
-  const estudiantesActivos = mockEstudiantes.filter((e) => e.activo)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-
-    if (!estudianteId || !tipoFaltaId || !descripcion || !sancion) {
-      toast.error("Todos los campos son obligatorios")
+  const handleSubmit = async () => {
+    if (!estudianteId || !tipoFaltaId || !fecha) {
+      toast.error("Completa los campos obligatorios.")
       return
     }
 
-    setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    setLoading(true)
+    // Simulación de guardado
+    await new Promise((r) => setTimeout(r, 800))
 
-    const estudiante = mockEstudiantes.find((e) => e.id === estudianteId)
-    toast.success(
-      `Infraccion registrada para ${estudiante?.nombre_completo}`
-    )
-
-    setEstudianteId("")
-    setTipoFaltaId("")
-    setDescripcion("")
-    setSancion("")
-    setFecha(new Date().toISOString().split("T")[0])
-    setIsSubmitting(false)
+    toast.success("Infracción registrada correctamente.")
+    router.push("/dashboard/regente/historial")
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="font-serif text-2xl font-bold text-foreground">
-          Registrar Infraccion
+        <h1 className="text-2xl font-bold text-gray-900">
+          Registrar Infracción
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Complete el formulario para registrar una nueva infraccion
-          disciplinaria.
+        <p className="mt-1 text-sm text-gray-500">
+          Solo puede registrar faltas leves. Las faltas graves y muy graves son
+          gestionadas por la coordinación.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Form */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="size-4 text-warning" />
-              Nueva Infraccion
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="estudiante">Estudiante</Label>
-                  <Select
-                    value={estudianteId}
-                    onValueChange={setEstudianteId}
-                  >
-                    <SelectTrigger id="estudiante">
-                      <SelectValue placeholder="Seleccionar estudiante" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {estudiantesActivos.map((e) => (
-                        <SelectItem key={e.id} value={e.id}>
-                          {e.nombre_completo} ({e.curso} &quot;{e.seccion}
-                          &quot;)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">
+            Datos de la Infracción
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Estudiante */}
+          <div className="space-y-1.5">
+            <Label htmlFor="estudiante">
+              Estudiante <span className="text-destructive">*</span>
+            </Label>
+            <Select value={estudianteId} onValueChange={setEstudianteId}>
+              <SelectTrigger id="estudiante">
+                <SelectValue placeholder="Seleccionar estudiante..." />
+              </SelectTrigger>
+              <SelectContent>
+                {mockEstudiantes
+                  .filter((e) => e.activo)
+                  .sort((a, b) =>
+                    a.nombre_completo.localeCompare(b.nombre_completo)
+                  )
+                  .map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nombre_completo} — {e.curso} {e.seccion}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="tipo">Tipo de Falta</Label>
-                  <Select
-                    value={tipoFaltaId}
-                    onValueChange={setTipoFaltaId}
-                  >
-                    <SelectTrigger id="tipo">
-                      <SelectValue placeholder="Seleccionar tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockTiposFalta.map((tf) => {
-                        const grav = getGravedadConfig(tf.gravedad)
-                        return (
-                          <SelectItem key={tf.id} value={tf.id}>
-                            <span className="flex items-center gap-2">
-                              <span
-                                className={`size-2 rounded-full ${grav.dotColor}`}
-                              />
-                              {tf.nombre}
-                            </span>
-                          </SelectItem>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          {/* Tipo de falta (solo leves) */}
+          <div className="space-y-1.5">
+            <Label htmlFor="tipo">
+              Tipo de Falta <span className="text-destructive">*</span>
+            </Label>
+            <Select value={tipoFaltaId} onValueChange={setTipoFaltaId}>
+              <SelectTrigger id="tipo">
+                <SelectValue placeholder="Seleccionar tipo..." />
+              </SelectTrigger>
+              <SelectContent>
+                {tiposFaltaLeves.map((tf) => (
+                  <SelectItem key={tf.id} value={tf.id}>
+                    {tf.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="fecha">Fecha</Label>
-                <Input
-                  id="fecha"
-                  type="date"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                />
-              </div>
+          {/* Fecha */}
+          <div className="space-y-1.5">
+            <Label htmlFor="fecha">
+              Fecha <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="fecha"
+              type="date"
+              value={fecha}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setFecha(e.target.value)}
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="descripcion">Descripcion del Incidente</Label>
-                <Textarea
-                  id="descripcion"
-                  placeholder="Describa detalladamente lo ocurrido..."
-                  rows={4}
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                />
-              </div>
+          {/* Descripción */}
+          <div className="space-y-1.5">
+            <Label htmlFor="descripcion">Descripción</Label>
+            <Textarea
+              id="descripcion"
+              placeholder="Detalle adicional sobre la infracción (opcional)..."
+              rows={4}
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="sancion">Sancion Aplicada</Label>
-                <Textarea
-                  id="sancion"
-                  placeholder="Describa la sancion o medida disciplinaria..."
-                  rows={2}
-                  value={sancion}
-                  onChange={(e) => setSancion(e.target.value)}
-                />
-              </div>
+          {/* Regente (solo lectura) */}
+          <div className="space-y-1.5">
+            <Label>Registrado por</Label>
+            <Input value={user?.nombre_completo ?? ""} disabled />
+          </div>
+        </CardContent>
+      </Card>
 
-              <Button
-                type="submit"
-                className="w-full sm:w-auto"
-                disabled={isSubmitting}
-              >
-                <Send className="mr-2 size-4" />
-                {isSubmitting ? "Registrando..." : "Registrar Infraccion"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Vista Previa</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                Profesor
-              </p>
-              <p className="text-sm font-medium text-foreground">
-                {user?.nombre_completo}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                Estudiante
-              </p>
-              <p className="text-sm font-medium text-foreground">
-                {estudianteId
-                  ? mockEstudiantes.find((e) => e.id === estudianteId)
-                      ?.nombre_completo
-                  : "Sin seleccionar"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                Tipo de Falta
-              </p>
-              {selectedTipo ? (
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">
-                    {selectedTipo.nombre}
-                  </p>
-                  <Badge
-                    variant="outline"
-                    className={
-                      getGravedadConfig(selectedTipo.gravedad).className
-                    }
-                  >
-                    {getGravedadConfig(selectedTipo.gravedad).label}
-                  </Badge>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Sin seleccionar
-                </p>
-              )}
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                Fecha
-              </p>
-              <p className="text-sm font-medium text-foreground">{fecha}</p>
-            </div>
-            {descripcion && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">
-                  Descripcion
-                </p>
-                <p className="text-sm text-foreground line-clamp-3">
-                  {descripcion}
-                </p>
-              </div>
-            )}
-            {sancion && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">
-                  Sancion
-                </p>
-                <p className="text-sm text-foreground line-clamp-2">
-                  {sancion}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex justify-end gap-3">
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/regente/historial")}
+          disabled={loading}
+        >
+          Cancelar
+        </Button>
+        <Button onClick={handleSubmit} disabled={loading}>
+          <CheckCircle2 className="mr-2 size-4" />
+          {loading ? "Guardando..." : "Registrar Infracción"}
+        </Button>
       </div>
     </div>
   )
