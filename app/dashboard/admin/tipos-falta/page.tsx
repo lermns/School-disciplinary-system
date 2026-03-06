@@ -1,133 +1,251 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { mockTiposFalta, tiposFaltaRegente } from "@/lib/mock-data"
+import type { TipoFalta, Gravedad } from "@/lib/types"
+import { getGravedadConfig } from "@/lib/helpers"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { toast } from "sonner"
-import { mockTiposFalta, mockInfracciones } from "@/lib/mock-data"
-import { getGravedadConfig } from "@/lib/helpers"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Plus, Pencil, Trash2, AlertTriangle, Info } from "lucide-react"
 
-export default function TiposFaltaPage() {
+const COLORS_POR_GRAVEDAD: Record<Gravedad, string> = {
+  leve: "#22c55e",
+  grave: "#eab308",
+  muy_grave: "#ef4444",
+}
+
+const emptyForm = { nombre: "", descripcion: "", gravedad: "leve" as Gravedad }
+
+export default function AdminTiposFaltaPage() {
+  const [tipos, setTipos] = useState<TipoFalta[]>(mockTiposFalta)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editando, setEditando] = useState<TipoFalta | null>(null)
+  const [eliminando, setEliminando] = useState<TipoFalta | null>(null)
+  const [form, setForm] = useState(emptyForm)
 
-  const getUsageCount = (tipoId: string) =>
-    mockInfracciones.filter((i) => i.tipo_falta_id === tipoId).length
+  const leveIds = new Set(tiposFaltaRegente.map((t) => t.id))
+
+  const abrirNuevo = () => {
+    setEditando(null)
+    setForm(emptyForm)
+    setDialogOpen(true)
+  }
+
+  const abrirEditar = (tipo: TipoFalta) => {
+    setEditando(tipo)
+    setForm({ nombre: tipo.nombre, descripcion: tipo.descripcion, gravedad: tipo.gravedad })
+    setDialogOpen(true)
+  }
+
+  const confirmarEliminar = (tipo: TipoFalta) => {
+    setEliminando(tipo)
+    setDeleteDialogOpen(true)
+  }
+
+  const guardar = () => {
+    if (!form.nombre.trim()) return
+    if (editando) {
+      setTipos((prev) =>
+        prev.map((t) =>
+          t.id === editando.id
+            ? { ...t, nombre: form.nombre, descripcion: form.descripcion, gravedad: form.gravedad, color: COLORS_POR_GRAVEDAD[form.gravedad] }
+            : t
+        )
+      )
+    } else {
+      const nuevo: TipoFalta = {
+        id: `tf${Date.now()}`,
+        nombre: form.nombre,
+        descripcion: form.descripcion,
+        gravedad: form.gravedad,
+        color: COLORS_POR_GRAVEDAD[form.gravedad],
+      }
+      setTipos((prev) => [...prev, nuevo])
+    }
+    setDialogOpen(false)
+  }
+
+  const eliminar = () => {
+    if (eliminando) {
+      setTipos((prev) => prev.filter((t) => t.id !== eliminando.id))
+    }
+    setDeleteDialogOpen(false)
+    setEliminando(null)
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-foreground">
-            Tipos de Falta
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Configuración de categorías de faltas disciplinarias
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Tipos de Falta</h1>
+          <p className="text-gray-500 text-sm mt-1">{tipos.length} tipos registrados</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gold text-gold-foreground hover:bg-gold/90">
-              <Plus className="mr-2 size-4" />
-              Nueva Falta
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Registrar Tipo de Falta</DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                toast.success("Tipo de falta registrado exitosamente")
-                setDialogOpen(false)
-              }}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <Label>Nombre</Label>
-                <Input placeholder="Nombre de la falta" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Descripción</Label>
-                <Textarea placeholder="Descripción detallada..." required />
-              </div>
-              <div className="space-y-2">
-                <Label>Gravedad</Label>
-                <Select defaultValue="leve">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="leve">Leve</SelectItem>
-                    <SelectItem value="grave">Grave</SelectItem>
-                    <SelectItem value="muy_grave">Muy Grave</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" className="w-full bg-gold text-gold-foreground hover:bg-gold/90">
-                Registrar Tipo de Falta
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={abrirNuevo} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
+          <Plus className="w-4 h-4" />
+          Nuevo tipo
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {mockTiposFalta.map((tipo) => {
-          const config = getGravedadConfig(tipo.gravedad)
-          const usageCount = getUsageCount(tipo.id)
+      {/* Info */}
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+        <Info className="w-4 h-4 mt-0.5 shrink-0" />
+        <p>
+          Los tipos marcados con <span className="font-semibold">★ Regente</span> son los que
+          pueden ser registrados por los regentes (solo faltas leves).
+        </p>
+      </div>
 
+      {/* Grid de tarjetas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tipos.map((tipo) => {
+          const gravedadCfg = getGravedadConfig(tipo.gravedad)
+          const esDeRegente = leveIds.has(tipo.id)
           return (
-            <Card key={tipo.id} className="relative overflow-hidden">
-              <div
-                className="absolute left-0 top-0 h-full w-1"
-                style={{ backgroundColor: tipo.color }}
-              />
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{tipo.nombre}</CardTitle>
-                  <Badge variant="outline" className={config.className}>
-                    {config.label}
+            <div
+              key={tipo.id}
+              className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: tipo.color }} />
+                  <p className="font-semibold text-gray-900 truncate">{tipo.nombre}</p>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => abrirEditar(tipo)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-[#0f1f3d] hover:bg-gray-100 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => confirmarEliminar(tipo)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-gray-500 text-sm leading-relaxed">{tipo.descripcion}</p>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline" className={`text-xs ${gravedadCfg.className}`}>
+                  {gravedadCfg.label}
+                </Badge>
+                {esDeRegente && (
+                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                    ★ Regente
                   </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {tipo.descripcion}
-                </p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    Utilizada{" "}
-                    <span className="font-semibold text-foreground">
-                      {usageCount}
-                    </span>{" "}
-                    {usageCount === 1 ? "vez" : "veces"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+                )}
+              </div>
+            </div>
           )
         })}
       </div>
+
+      {/* Dialog crear/editar */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editando ? "Editar tipo de falta" : "Nuevo tipo de falta"}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Nombre</Label>
+              <Input
+                placeholder="Ej: Uso de celular"
+                value={form.nombre}
+                onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Gravedad</Label>
+              <Select
+                value={form.gravedad}
+                onValueChange={(v) => setForm((f) => ({ ...f, gravedad: v as Gravedad }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="leve">Leve</SelectItem>
+                  <SelectItem value="grave">Grave</SelectItem>
+                  <SelectItem value="muy_grave">Muy Grave</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Descripción</Label>
+              <Textarea
+                placeholder="Descripción de la falta..."
+                value={form.descripcion}
+                onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={guardar}
+              disabled={!form.nombre.trim()}
+              className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white"
+            >
+              {editando ? "Guardar cambios" : "Crear tipo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert eliminar */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Eliminar tipo de falta
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar <strong>{eliminando?.nombre}</strong>? Esta acción
+              no se puede deshacer. Las infracciones ya registradas con este tipo no se verán afectadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={eliminar} className="bg-red-600 hover:bg-red-700 text-white">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

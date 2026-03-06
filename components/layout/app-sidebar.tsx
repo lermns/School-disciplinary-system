@@ -131,7 +131,7 @@ export function AppSidebar() {
   const navItems =
     user.rol === "admin"
       ? adminNav
-      : user.rol === "profesor"
+      : user.rol === "regente"
         ? profesorNav
         : padreNav
 

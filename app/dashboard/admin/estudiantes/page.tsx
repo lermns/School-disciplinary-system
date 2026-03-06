@@ -1,491 +1,313 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import {
-  Search,
-  Plus,
-  Eye,
-  History,
-  User,
-  MapPin,
-  Calendar,
-  BookOpen,
-} from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { useState } from "react"
+import { mockEstudiantes } from "@/lib/mock-data"
+import type { Estudiante } from "@/lib/types"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { toast } from "sonner"
 import {
-  mockEstudiantes,
-  mockInfracciones,
-  mockTiposFalta,
-  mockUsuarios,
-} from "@/lib/mock-data"
-import { getGravedadConfig, getEstadoConfig, formatDate } from "@/lib/helpers"
-import type { Estudiante } from "@/lib/types"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Plus, Pencil, Trash2, Search, UserCircle, AlertTriangle } from "lucide-react"
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase()
+const CURSOS = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
+const SECCIONES = ["A", "B", "C"]
+
+const emptyForm = {
+  nombre_completo: "",
+  curso: "1ro",
+  seccion: "A",
+  direccion: "",
 }
 
-const cursos = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
-const secciones = ["A", "B"]
-
-export default function EstudiantesPage() {
+export default function AdminEstudiantesPage() {
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>(mockEstudiantes)
   const [search, setSearch] = useState("")
-  const [cursoFilter, setCursoFilter] = useState("all")
-  const [selectedStudent, setSelectedStudent] = useState<Estudiante | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [filterCurso, setFilterCurso] = useState("all")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [editando, setEditando] = useState<Estudiante | null>(null)
+  const [eliminando, setEliminando] = useState<Estudiante | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const filteredStudents = useMemo(() => {
-    return mockEstudiantes.filter((e) => {
-      const matchesSearch = e.nombre_completo
-        .toLowerCase()
-        .includes(search.toLowerCase())
-      const matchesCurso =
-        cursoFilter === "all" ? true : e.curso === cursoFilter
-      return matchesSearch && matchesCurso
-    })
-  }, [search, cursoFilter])
+  const filtered = estudiantes.filter((e) => {
+    const matchSearch =
+      !search ||
+      e.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
+      e.direccion.toLowerCase().includes(search.toLowerCase())
+    const matchCurso = filterCurso === "all" || e.curso === filterCurso
+    return matchSearch && matchCurso
+  })
 
-  const getStudentInfraccionCount = (id: string) =>
-    mockInfracciones.filter((i) => i.estudiante_id === id).length
+  const abrirNuevo = () => {
+    setEditando(null)
+    setForm(emptyForm)
+    setErrors({})
+    setDialogOpen(true)
+  }
 
-  const getStudentInfracciones = (id: string) =>
-    mockInfracciones
-      .filter((i) => i.estudiante_id === id)
-      .map((inf) => ({
-        ...inf,
-        tipo_falta: mockTiposFalta.find((tf) => tf.id === inf.tipo_falta_id),
-        profesor: mockUsuarios.find((u) => u.id === inf.profesor_id),
-      }))
+  const abrirEditar = (e: Estudiante) => {
+    setEditando(e)
+    setForm({ nombre_completo: e.nombre_completo, curso: e.curso, seccion: e.seccion, direccion: e.direccion })
+    setErrors({})
+    setDialogOpen(true)
+  }
 
-  const handleRowClick = (student: Estudiante) => {
-    setSelectedStudent(student)
-    setSheetOpen(true)
+  const confirmarEliminar = (e: Estudiante) => {
+    setEliminando(e)
+    setDeleteDialogOpen(true)
+  }
+
+  const validar = () => {
+    const errs: Record<string, string> = {}
+    if (!form.nombre_completo.trim()) errs.nombre_completo = "El nombre es requerido"
+    if (!form.direccion.trim()) errs.direccion = "La dirección es requerida"
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  const guardar = () => {
+    if (!validar()) return
+    if (editando) {
+      setEstudiantes((prev) =>
+        prev.map((e) =>
+          e.id === editando.id
+            ? { ...e, nombre_completo: form.nombre_completo, curso: form.curso, seccion: form.seccion, direccion: form.direccion }
+            : e
+        )
+      )
+    } else {
+      const nuevo: Estudiante = {
+        id: `e${Date.now()}`,
+        nombre_completo: form.nombre_completo,
+        curso: form.curso,
+        seccion: form.seccion,
+        direccion: form.direccion,
+        foto_url: null,
+        activo: true,
+        created_at: new Date().toISOString(),
+      }
+      setEstudiantes((prev) => [...prev, nuevo])
+    }
+    setDialogOpen(false)
+  }
+
+  const eliminar = () => {
+    if (eliminando) {
+      setEstudiantes((prev) => prev.filter((e) => e.id !== eliminando.id))
+    }
+    setDeleteDialogOpen(false)
+    setEliminando(null)
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-foreground">
-            Estudiantes
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Gestión del directorio de estudiantes
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Estudiantes</h1>
+          <p className="text-gray-500 text-sm mt-1">{estudiantes.filter(e => e.activo).length} activos de {estudiantes.length}</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gold text-gold-foreground hover:bg-gold/90">
-              <Plus className="mr-2 size-4" />
-              Nuevo Estudiante
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Registrar Nuevo Estudiante</DialogTitle>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                toast.success("Estudiante registrado exitosamente")
-                setDialogOpen(false)
-              }}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <Label>Nombre Completo</Label>
-                <Input placeholder="Nombre completo del estudiante" required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Curso</Label>
-                  <Select defaultValue="4to">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cursos.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Sección</Label>
-                  <Select defaultValue="A">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {secciones.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha de Nacimiento</Label>
-                <Input type="date" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Dirección</Label>
-                <Textarea placeholder="Dirección completa" />
-              </div>
-              <Button
-                type="submit"
-                className="w-full bg-gold text-gold-foreground hover:bg-gold/90"
-              >
-                Registrar Estudiante
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={abrirNuevo} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
+          <Plus className="w-4 h-4" />
+          Nuevo estudiante
+        </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={cursoFilter} onValueChange={setCursoFilter}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Curso" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los cursos</SelectItem>
-              {cursos.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Buscar por nombre o dirección..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={filterCurso} onValueChange={setFilterCurso}>
+          <SelectTrigger className="w-full sm:w-44">
+            <SelectValue placeholder="Todos los cursos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los cursos</SelectItem>
+            {CURSOS.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Estudiante</TableHead>
-                  <TableHead>Curso</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Infracciones
-                  </TableHead>
-                  <TableHead className="hidden sm:table-cell">Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.map((student) => {
-                  const count = getStudentInfraccionCount(student.id)
-                  return (
-                    <TableRow
-                      key={student.id}
-                      className="cursor-pointer"
-                      onClick={() => handleRowClick(student)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="size-9">
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                              {getInitials(student.nombre_completo)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">
-                            {student.nombre_completo}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {student.curso} {student.seccion}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge
-                          variant={count > 0 ? "destructive" : "secondary"}
-                          className={
-                            count > 0
-                              ? "bg-destructive/10 text-destructive"
-                              : ""
-                          }
-                        >
-                          {count}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge
-                          variant="outline"
-                          className={
-                            student.activo
-                              ? "bg-success/10 text-success border-success/20"
-                              : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {student.activo ? "Activo" : "Inactivo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRowClick(student)
-                            }}
-                            aria-label="Ver detalle"
-                          >
-                            <Eye className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleRowClick(student)
-                            }}
-                            aria-label="Ver historial"
-                          >
-                            <History className="size-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Student Detail Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg p-0">
-          {selectedStudent && (
-            <>
-              <SheetHeader className="p-6 pb-4">
-                <div className="flex items-center gap-4">
-                  <Avatar className="size-16">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
-                      {getInitials(selectedStudent.nombre_completo)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <SheetTitle className="text-lg">
-                      {selectedStudent.nombre_completo}
-                    </SheetTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedStudent.curso} - Sección{" "}
-                      {selectedStudent.seccion}
-                    </p>
+      {/* Tabla */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50/80">
+              <TableHead className="font-semibold text-gray-700">Estudiante</TableHead>
+              <TableHead className="font-semibold text-gray-700">Curso</TableHead>
+              <TableHead className="font-semibold text-gray-700">Dirección</TableHead>
+              <TableHead className="font-semibold text-gray-700">Estado</TableHead>
+              <TableHead className="font-semibold text-gray-700 text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-12 text-gray-400">
+                  No se encontraron estudiantes
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((est) => (
+                <TableRow key={est.id} className="hover:bg-gray-50/50 transition-colors">
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <UserCircle className="w-8 h-8 text-gray-300 shrink-0" />
+                      <span className="font-medium text-gray-900">{est.nombre_completo}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-medium text-gray-700">{est.curso} {est.seccion}</span>
+                  </TableCell>
+                  <TableCell className="text-gray-600 text-sm max-w-xs">
+                    <span className="line-clamp-1">{est.direccion}</span>
+                  </TableCell>
+                  <TableCell>
                     <Badge
                       variant="outline"
-                      className={
-                        selectedStudent.activo
-                          ? "mt-1 bg-success/10 text-success border-success/20"
-                          : "mt-1 bg-muted text-muted-foreground"
+                      className={est.activo
+                        ? "bg-green-50 text-green-700 border-green-200 text-xs"
+                        : "bg-gray-50 text-gray-500 border-gray-200 text-xs"
                       }
                     >
-                      {selectedStudent.activo ? "Activo" : "Inactivo"}
+                      {est.activo ? "Activo" : "Inactivo"}
                     </Badge>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <Tabs defaultValue="info" className="px-6">
-                <TabsList className="w-full">
-                  <TabsTrigger value="info" className="flex-1">
-                    Información
-                  </TabsTrigger>
-                  <TabsTrigger value="historial" className="flex-1">
-                    Historial
-                  </TabsTrigger>
-                  <TabsTrigger value="contacto" className="flex-1">
-                    Contacto
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="info" className="mt-4 space-y-4 pb-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-start gap-2">
-                      <Calendar className="mt-0.5 size-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Fecha de nacimiento
-                        </p>
-                        <p className="text-sm font-medium">
-                          {formatDate(selectedStudent.fecha_nacimiento)}
-                        </p>
-                      </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <button
+                        onClick={() => abrirEditar(est)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-[#0f1f3d] hover:bg-gray-100 transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => confirmarEliminar(est)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <BookOpen className="mt-0.5 size-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Curso / Sección
-                        </p>
-                        <p className="text-sm font-medium">
-                          {selectedStudent.curso} -{" "}
-                          {selectedStudent.seccion}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 size-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Dirección
-                      </p>
-                      <p className="text-sm font-medium">
-                        {selectedStudent.direccion}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <User className="mt-0.5 size-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Registrado
-                      </p>
-                      <p className="text-sm font-medium">
-                        {formatDate(selectedStudent.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                </TabsContent>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-                <TabsContent value="historial" className="mt-4 space-y-3 pb-6">
-                  {getStudentInfracciones(selectedStudent.id).length === 0 ? (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                      No hay infracciones registradas
-                    </p>
-                  ) : (
-                    getStudentInfracciones(selectedStudent.id).map((inf) => {
-                      const gravedad = inf.tipo_falta
-                        ? getGravedadConfig(inf.tipo_falta.gravedad)
-                        : null
-                      const estado = getEstadoConfig(inf.estado)
+      {/* Dialog crear/editar */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editando ? "Editar estudiante" : "Nuevo estudiante"}</DialogTitle>
+          </DialogHeader>
 
-                      return (
-                        <div
-                          key={inf.id}
-                          className="rounded-lg border border-border p-4 space-y-2"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold">
-                              {inf.tipo_falta?.nombre}
-                            </span>
-                            <div className="flex gap-2">
-                              {gravedad && (
-                                <Badge
-                                  variant="outline"
-                                  className={gravedad.className}
-                                >
-                                  {gravedad.label}
-                                </Badge>
-                              )}
-                              <Badge
-                                variant="outline"
-                                className={estado.className}
-                              >
-                                {estado.label}
-                              </Badge>
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {inf.descripcion}
-                          </p>
-                          <Separator />
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>
-                              Prof. {inf.profesor?.nombre_completo}
-                            </span>
-                            <span>{formatDate(inf.fecha)}</span>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </TabsContent>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Nombre completo <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="Ej: Juan García López"
+                value={form.nombre_completo}
+                onChange={(e) => setForm((f) => ({ ...f, nombre_completo: e.target.value }))}
+              />
+              {errors.nombre_completo && <p className="text-xs text-red-500">{errors.nombre_completo}</p>}
+            </div>
 
-                <TabsContent value="contacto" className="mt-4 space-y-4 pb-6">
-                  <div className="rounded-lg border border-border p-4">
-                    <p className="text-xs text-muted-foreground">
-                      Acudiente / Padre
-                    </p>
-                    <p className="text-sm font-medium">
-                      Pedro Rodríguez
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      padre.rodriguez@gmail.com
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Curso <span className="text-red-500">*</span></Label>
+                <Select value={form.curso} onValueChange={(v) => setForm((f) => ({ ...f, curso: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURSOS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Sección <span className="text-red-500">*</span></Label>
+                <Select value={form.seccion} onValueChange={(v) => setForm((f) => ({ ...f, seccion: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SECCIONES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Dirección <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="Ej: Calle 45 #12-34, Bogotá"
+                value={form.direccion}
+                onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
+              />
+              {errors.direccion && <p className="text-xs text-red-500">{errors.direccion}</p>}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={guardar} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white">
+              {editando ? "Guardar cambios" : "Registrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert eliminar */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Eliminar estudiante
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar a <strong>{eliminando?.nombre_completo}</strong>? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={eliminar} className="bg-red-600 hover:bg-red-700 text-white">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

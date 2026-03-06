@@ -7,7 +7,7 @@ import { mockUsuarios } from "@/lib/mock-data"
 
 interface AuthContextType {
   user: Usuario | null
-  login: (email: string, password: string) => Promise<boolean>
+  login: (emailOrCode: string, password: string) => Promise<boolean>
   logout: () => void
   isLoading: boolean
 }
@@ -27,13 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(
-    async (email: string, _password: string) => {
+    async (emailOrCode: string, _password: string) => {
       setIsLoading(true)
-      // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 800))
 
       const foundUser = mockUsuarios.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase()
+        (u) => u.email.toLowerCase() === emailOrCode.toLowerCase()
       )
 
       if (foundUser) {
@@ -45,11 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           case "admin":
             router.push("/dashboard/admin")
             break
-          case "profesor":
-            router.push("/dashboard/profesor")
+          case "regente":
+            router.push("/dashboard/regente")
             break
-          case "padre":
-            router.push("/dashboard/padre")
+          case "estudiante":
+            router.push("/dashboard/estudiante")
             break
         }
         return true
