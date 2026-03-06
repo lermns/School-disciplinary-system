@@ -47,7 +47,7 @@ export default function ConfiguracionPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle className="text-base">Notificaciones</CardTitle>
           </CardHeader>
@@ -82,7 +82,7 @@ export default function ConfiguracionPage() {
               <Switch />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   )

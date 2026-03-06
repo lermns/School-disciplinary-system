@@ -31,7 +31,6 @@ import {
 } from "recharts"
 import {
   mockEstudiantes,
-  mockTiposFalta,
   getInfraccionesConDatos,
 } from "@/lib/mock-data"
 import { getGravedadConfig, formatDate } from "@/lib/helpers"

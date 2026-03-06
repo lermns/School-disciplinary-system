@@ -1,11 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Search } from "lucide-react"
+import { Search, CalendarDays, User, BookOpen, FileText } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Table,
   TableBody,
@@ -35,7 +41,6 @@ export default function RegenteHistorialPage() {
   const { user } = useAuth()
   const [search, setSearch] = useState("")
 
-  // Filtrar por regente_id (antes era profesor_id)
   const myInfracciones = mockInfracciones
     .filter((i) => i.regente_id === user?.id)
     .map((inf) => ({
@@ -43,6 +48,9 @@ export default function RegenteHistorialPage() {
       estudiante: mockEstudiantes.find((e) => e.id === inf.estudiante_id),
       tipo_falta: mockTiposFalta.find((tf) => tf.id === inf.tipo_falta_id),
     }))
+
+  type InfRow = (typeof myInfracciones)[0]
+  const [selected, setSelected] = useState<InfRow | null>(null)
 
   const filtered = myInfracciones.filter((inf) => {
     return (
@@ -117,7 +125,11 @@ export default function RegenteHistorialPage() {
                       : null
 
                     return (
-                      <TableRow key={inf.id}>
+                      <TableRow
+                        key={inf.id}
+                        className="cursor-pointer hover:bg-muted/60"
+                        onClick={() => setSelected(inf)}
+                      >
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="size-7">
@@ -162,6 +174,81 @@ export default function RegenteHistorialPage() {
           </div>
         </CardContent>
       </Card>
+      {/* Dialog de detalle */}
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">Detalle de infracción</DialogTitle>
+          </DialogHeader>
+
+          {selected && (() => {
+            const gravedad = selected.tipo_falta
+              ? getGravedadConfig(selected.tipo_falta.gravedad)
+              : null
+            return (
+              <div className="space-y-4 pt-1">
+                {/* Estudiante */}
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <Avatar className="size-10">
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                      {selected.estudiante
+                        ? getInitials(selected.estudiante.nombre_completo)
+                        : "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-sm">
+                      {selected.estudiante?.nombre_completo}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selected.estudiante?.curso} — Sección {selected.estudiante?.seccion}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Info */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-start gap-2">
+                    <BookOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tipo de falta</p>
+                      <p className="font-medium">{selected.tipo_falta?.nombre ?? "—"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CalendarDays className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Fecha</p>
+                      <p className="font-medium">{formatDate(selected.fecha)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gravedad */}
+                {gravedad && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Gravedad:</span>
+                    <Badge variant="outline" className={gravedad.className}>
+                      {gravedad.label}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Descripción completa */}
+                <div className="flex items-start gap-2">
+                  <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Descripción</p>
+                    <p className="text-sm leading-relaxed">
+                      {selected.descripcion || "Sin descripción."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -96,7 +96,7 @@ export default function EstudianteDashboard() {
 
       {/* Historial */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Historial de infracciones</h2>
+        <h2 className="font-serif text-xl font-bold text-foreground mb-4">Historial de infracciones</h2>
 
         {infracciones.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">

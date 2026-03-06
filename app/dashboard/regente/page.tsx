@@ -11,11 +11,13 @@ import { RegistrarInfraccionModal } from "@/components/regente/registrar-infracc
 import { useAuth } from "@/lib/auth-context"
 
 const CURSOS = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
+const SECCIONES = ["A", "B", "C"]
 
 export default function RegenteDashboard() {
   const { user } = useAuth()
   const [search, setSearch] = useState("")
   const [filterCurso, setFilterCurso] = useState("all")
+  const [filterSeccion, setFilterSeccion] = useState("all")
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<Estudiante | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -31,9 +33,10 @@ export default function RegenteDashboard() {
         e.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
         e.curso.toLowerCase().includes(search.toLowerCase())
       const matchCurso = filterCurso === "all" || e.curso === filterCurso
-      return matchSearch && matchCurso
+      const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
+      return matchSearch && matchCurso && matchSeccion
     })
-  }, [activos, search, filterCurso])
+  }, [activos, search, filterCurso, filterSeccion])
 
   const abrirModal = (est: Estudiante) => {
     setEstudianteSeleccionado(est)
@@ -44,9 +47,9 @@ export default function RegenteDashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Panel del Regente</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Bienvenido, <span className="font-medium text-gray-700">{user?.nombre_completo}</span> — registra infracciones leves
+        <h1 className="font-serif text-2xl font-bold text-foreground">Panel del Regente</h1>
+        <p className="text-sm text-muted-foreground">
+          Bienvenido, registra infracciones leves.
         </p>
       </div>
 
@@ -100,6 +103,17 @@ export default function RegenteDashboard() {
             <SelectItem value="all">Todos los cursos</SelectItem>
             {CURSOS.map((c) => (
               <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterSeccion} onValueChange={setFilterSeccion}>
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue placeholder="Sección" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Secciones</SelectItem>
+            {SECCIONES.map((s) => (
+              <SelectItem key={s} value={s}>Sección {s}</SelectItem>
             ))}
           </SelectContent>
         </Select>

@@ -1,131 +1,188 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, GraduationCap, AlertCircle } from "lucide-react"
+import { Eye, EyeOff, GraduationCap, Lock, Mail } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+
+const loginSchema = z.object({
+  email: z.string().min(4, "Ingresa un usuario válido"),
+  password: z.string().min(6, "La contraseña es requerida"),
+})
+
+type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const { login, isLoading } = useAuth()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
+  const { login, isLoading } = useAuth()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    const success = await login(email, password)
-    if (!success) {
-      setError("Credenciales incorrectas. Verifica tu usuario y contraseña.")
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "user",
+      password: "demo123",
+    },
+  })
+
+  const onSubmit = async (data: LoginForm) => {
+    const success = await login(data.email, data.password)
+    if (success) {
+      toast.success("Bienvenido al sistema")
+    } else {
+      toast.error("Credenciales inválidas. Intenta de nuevo.")
     }
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left — imagen / branding */}
-      <div className="hidden lg:flex lg:w-3/5 relative bg-[#0f1f3d] flex-col items-center justify-center p-12 overflow-hidden">
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0f1f3d] via-[#1a3461] to-[#0f1f3d] opacity-90" />
-        {/* Decorative circles */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#d4af37]/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-[#d4af37]/5 rounded-full blur-2xl" />
+    <div className="flex min-h-screen">
+      <div className="relative hidden w-[60%] lg:block">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url(/images/eldorado.jpg)" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-[oklch(0.18_0.05_250/0.85)] via-[oklch(0.2_0.06_250/0.7)] to-[oklch(0.15_0.04_250/0.9)]" />
 
-        <div className="relative z-10 text-center text-white">
-          <div className="w-28 h-28 bg-[#d4af37]/20 rounded-full flex items-center justify-center mx-auto mb-8 ring-2 ring-[#d4af37]/40">
-            <GraduationCap className="w-16 h-16 text-[#d4af37]" />
+        <div className="relative z-10 flex h-full flex-col justify-between p-10">
+          {/* Top - School name */}
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="flex size-12 items-center justify-center rounded-xl bg-gold/20 backdrop-blur-sm">
+                <img
+                  src="/images/logodorado.png"
+                  alt="Logo"
+                  className="size-15 object-contain"
+                />
+              </div>
+
+              <div>
+                <h1 className="font-serif text-3xl font-bold tracking-tight text-white">
+                  Modulo Educativo El Dorado
+                </h1>
+                <p className="text-base font-medium text-gold/90">
+                  Comisión Disciplinaria
+                </p>
+              </div>
+            </div>
           </div>
-          <h1 className="text-4xl font-bold mb-3 text-white">Colegio El Dorado</h1>
-          <p className="text-[#d4af37] text-xl font-medium mb-4">Comisión Disciplinaria</p>
-          <div className="w-20 h-0.5 bg-[#d4af37]/50 mx-auto mb-6" />
-          <p className="text-white/60 text-sm max-w-sm mx-auto leading-relaxed">
-            Sistema de gestión de infracciones escolares. Formando ciudadanos con valores y excelencia académica.
+
+          {/* Middle - Decorative */}
+          <div className="max-w-lg">
+            <blockquote className="space-y-3">
+              <p className="text-lg leading-relaxed text-white/80 italic">
+                {
+                  '"Educamos con disciplina, formamos con valores. Nuestro compromiso es construir ciudadanos íntegros para el futuro."'
+                }
+              </p>
+            </blockquote>
+          </div>
+
+          {/* Bottom - Copyright */}
+          <p className="text-xs text-white/50">
+            {
+              "© 2026 Todos los derechos reservados. Desarrollado por Leonardo Ramos."
+            }
           </p>
         </div>
       </div>
 
-      {/* Right — formulario */}
-      <div className="w-full lg:w-2/5 flex items-center justify-center bg-white p-8">
-        <div className="w-full max-w-md">
-          {/* Logo mobile */}
-          <div className="lg:hidden flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-[#0f1f3d] rounded-full flex items-center justify-center mb-3">
-              <GraduationCap className="w-8 h-8 text-[#d4af37]" />
-            </div>
-            <h1 className="text-2xl font-bold text-[#0f1f3d]">Colegio El Dorado</h1>
-            <p className="text-[#d4af37] text-sm font-medium">Comisión Disciplinaria</p>
-          </div>
 
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Iniciar Sesión</h2>
-            <p className="text-gray-500 mt-1 text-sm">
-              Ingresa tus credenciales para acceder al sistema
+      {/* Right — formulario */}
+      {/* Form Container */}
+      <div className="flex flex-1 items-center justify-center px-6 py-12 lg:px-12">
+        <div className="w-full max-w-sm space-y-8">
+
+          {/* Icon & Title */}
+          <div className="space-y-2 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary">
+              <GraduationCap className="size-7 text-primary-foreground" />
+            </div>
+            <h2 className="font-serif text-2xl font-bold tracking-tight text-foreground">
+              Iniciar Sesión
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Ingresa tus credenciales para acceder
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Usuario / Código
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="text" className="text-sm font-medium text-foreground">
+                Nombre de usuario
               </Label>
-              <Input
-                id="email"
-                type="text"
-                placeholder="usuario@colegio.edu o código"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-11 border-gray-200 focus:border-[#0f1f3d] focus:ring-[#0f1f3d]"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="text"
+                  placeholder="usuario"
+                  className="h-11 pl-10"
+                  {...register("email")}
+                />
+              </div>
+              {errors.email && (
+                <p className="text-xs text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+            {/* Password */}
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium text-foreground">
                 Contraseña
               </Label>
               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-11 pr-10 border-gray-200 focus:border-[#0f1f3d] focus:ring-[#0f1f3d]"
+                  placeholder="Ingresa tu contraseña"
+                  className="h-11 pl-10 pr-10"
+                  {...register("password")}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
-            {error && (
-              <Alert variant="destructive" className="py-3">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm">{error}</AlertDescription>
-              </Alert>
-            )}
-
+            {/* Submit */}
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-11 bg-[#0f1f3d] hover:bg-[#1a3461] text-white font-medium"
+              className="h-11 w-full bg-gold text-gold-foreground hover:bg-gold/90 font-semibold text-sm"
             >
               {isLoading ? (
                 <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Verificando...
+                  <span className="size-4 animate-spin rounded-full border-2 border-gold-foreground/30 border-t-gold-foreground" />
+                  Ingresando...
                 </span>
               ) : (
                 "Ingresar"
@@ -133,28 +190,54 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Credenciales de prueba
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-background px-3 text-muted-foreground">
+                Roles disponibles
+              </span>
+            </div>
+          </div>
+
+          {/* Role Badges */}
+          <div className="flex items-center justify-center gap-2">
+            <Badge variant="outline" className="text-xs font-medium">
+              Admin
+            </Badge>
+            <span className="text-muted-foreground">{"·"}</span>
+            <Badge variant="outline" className="text-xs font-medium">
+              Regente
+            </Badge>
+            <span className="text-muted-foreground">{"·"}</span>
+            <Badge variant="outline" className="text-xs font-medium">
+              Estudiante
+            </Badge>
+          </div>
+
+          {/* Demo Credentials */}
+          <div className="rounded-lg border border-border bg-muted/50 p-4">
+            <p className="mb-2 text-xs font-semibold text-foreground">
+              Cuentas de demostración:
             </p>
-            <div className="space-y-1.5 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span className="text-gray-400">Admin</span>
-                <span className="font-mono">admin@colegiodorado.edu</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Regente</span>
-                <span className="font-mono">regente.garcia@colegiodorado.edu</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Estudiante</span>
-                <span className="font-mono">1001</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Contraseña</span>
-                <span className="font-mono">cualquiera</span>
-              </div>
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">Admin:</span>{" "}
+                admin@colegiodorado.edu
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Regente:</span>{" "}
+                regente.garcia@colegiodorado.edu
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Estudiante:</span>{" "}
+                1001
+              </p>
+              <p className="mt-1 text-muted-foreground/70 italic">
+                Contraseña: cualquiera
+              </p>
             </div>
           </div>
         </div>

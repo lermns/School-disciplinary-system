@@ -1,8 +1,6 @@
 "use client"
 
-import { FileDown } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -35,12 +33,18 @@ const infracciones = getInfraccionesConDatos()
 
 // Monthly trend data (simulado)
 const monthlyTrend = [
+  { mes: "Ene", count: 5 },
+  { mes: "Feb", count: 8 },
+  { mes: "Mar", count: 6 },
+  { mes: "Abr", count: 4 },
+  { mes: "May", count: 9 },
   { mes: "Jun", count: 3 },
   { mes: "Jul", count: 5 },
   { mes: "Ago", count: 2 },
   { mes: "Sep", count: 7 },
   { mes: "Oct", count: 4 },
   { mes: "Nov", count: 10 },
+  { mes: "Dic", count: 6 },
 ]
 
 // Infracciones por curso
@@ -75,6 +79,7 @@ mockInfracciones.forEach((inf) => {
 })
 const infraccionesPorRegente = Object.entries(regenteCountMap)
   .map(([id, count]) => ({
+    id,
     nombre: mockUsuarios.find((u) => u.id === id)?.nombre_completo || "N/A",
     count,
   }))
@@ -99,13 +104,13 @@ export default function ReportesPage() {
             Análisis y estadísticas del sistema disciplinario
           </p>
         </div>
-        <Button
+        {/* <Button
           variant="outline"
           onClick={() => toast.info("Función de exportación a PDF en desarrollo")}
         >
           <FileDown className="mr-2 size-4" />
           Exportar PDF
-        </Button>
+        </Button> */}
       </div>
 
       {/* Charts */}
@@ -200,7 +205,7 @@ export default function ReportesPage() {
                       {student?.curso} {student?.seccion}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="destructive" className="bg-destructive/10 text-destructive">
+                      <Badge variant="destructive" className="bg-destructive/10 text-destructive dark:bg-red-900/40 dark:text-red-300">
                         {count}
                       </Badge>
                     </TableCell>
@@ -212,7 +217,7 @@ export default function ReportesPage() {
         </Card>
 
         {/* Por regente */}
-        <Card>
+        {/* <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
               Infracciones por Regente
@@ -228,7 +233,7 @@ export default function ReportesPage() {
               </TableHeader>
               <TableBody>
                 {infraccionesPorRegente.map((reg) => (
-                  <TableRow key={reg.nombre}>
+                  <TableRow key={reg.id}>
                     <TableCell className="font-medium">{reg.nombre}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant="secondary">{reg.count}</Badge>
@@ -238,7 +243,7 @@ export default function ReportesPage() {
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   )

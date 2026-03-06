@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useTheme } from "next-themes"
 import {
   LayoutDashboard,
   Users,
@@ -13,6 +15,10 @@ import {
   BookOpen,
   LogOut,
   ShieldCheck,
+  Menu,
+  X,
+  Sun,
+  Moon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -37,69 +43,63 @@ const adminNav: NavItem[] = [
 
 const regenteNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard/regente", icon: LayoutDashboard },
-  { label: "Registrar Infracción", href: "/dashboard/regente/registrar", icon: PlusCircle },
   { label: "Mi Historial", href: "/dashboard/regente/historial", icon: History },
 ]
 
 const estudianteNav: NavItem[] = [
   { label: "Mi Perfil", href: "/dashboard/estudiante", icon: LayoutDashboard },
-  { label: "Mis Infracciones", href: "/dashboard/estudiante/infracciones", icon: BookOpen },
 ]
 
 function getRolLabel(rol: string) {
   switch (rol) {
-    case "admin":
-      return "Administrador"
-    case "regente":
-      return "Regente"
-    case "estudiante":
-      return "Estudiante"
-    default:
-      return rol
+    case "admin": return "Administrador"
+    case "regente": return "Regente"
+    case "estudiante": return "Estudiante"
+    default: return rol
   }
 }
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase()
+  return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
 }
 
-export function AppSidebar() {
+function SidebarContent({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { theme, setTheme } = useTheme()
 
   let navItems: NavItem[] = []
   switch (user?.rol) {
-    case "admin":
-      navItems = adminNav
-      break
-    case "regente":
-      navItems = regenteNav
-      break
-    case "estudiante":
-      navItems = estudianteNav
-      break
+    case "admin": navItems = adminNav; break
+    case "regente": navItems = regenteNav; break
+    case "estudiante": navItems = estudianteNav; break
   }
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-sidebar">
+    <div className="flex h-full flex-col bg-sidebar">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-2.5 border-b px-5">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
-          <ShieldCheck className="size-4 text-primary-foreground" />
+      <div className="flex h-16 items-center justify-between border-b px-5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
+            <ShieldCheck className="size-4 text-primary-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-tight text-sidebar-foreground">
+              El Dorado
+            </p>
+            <p className="text-[10px] text-sidebar-foreground/50">
+              Sistema Disciplinario
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold leading-tight text-sidebar-foreground">
-            El Dorado
-          </p>
-          <p className="text-[10px] text-sidebar-foreground/50">
-            Sistema Disciplinario
-          </p>
-        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground lg:hidden"
+          >
+            <X className="size-5" />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -115,6 +115,7 @@ export function AppSidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={onClose}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                     isActive
@@ -134,7 +135,7 @@ export function AppSidebar() {
       <Separator />
 
       {/* User footer */}
-      <div className="flex items-center gap-3 p-4">
+      <div className="flex items-center gap-2 p-4">
         <Avatar className="size-8 shrink-0">
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
             {user ? getInitials(user.nombre_completo) : "?"}
@@ -148,6 +149,21 @@ export function AppSidebar() {
             {user ? getRolLabel(user.rol) : ""}
           </p>
         </div>
+        {/* Toggle tema */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 shrink-0 text-sidebar-foreground/50 hover:text-sidebar-foreground"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+        >
+          {theme === "dark" ? (
+            <Sun className="size-4" />
+          ) : (
+            <Moon className="size-4" />
+          )}
+        </Button>
+        {/* Cerrar sesión */}
         <Button
           variant="ghost"
           size="icon"
@@ -158,6 +174,45 @@ export function AppSidebar() {
           <LogOut className="size-4" />
         </Button>
       </div>
-    </aside>
+    </div>
+  )
+}
+
+export function AppSidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  return (
+    <>
+      {/* Hamburguesa — solo móvil */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-4 left-4 z-40 flex size-9 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-md lg:hidden"
+      >
+        <Menu className="size-5" />
+      </button>
+
+      {/* Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Drawer móvil */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 transition-transform duration-200 lg:hidden",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <SidebarContent onClose={() => setMobileOpen(false)} />
+      </aside>
+
+      {/* Sidebar desktop */}
+      <aside className="hidden h-full w-64 flex-col border-r lg:flex">
+        <SidebarContent />
+      </aside>
+    </>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { mockEstudiantes } from "@/lib/mock-data"
 import type { Estudiante } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -42,6 +42,7 @@ export default function AdminEstudiantesPage() {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>(mockEstudiantes)
   const [search, setSearch] = useState("")
   const [filterCurso, setFilterCurso] = useState("all")
+  const [filterSeccion, setFilterSeccion] = useState("all")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editando, setEditando] = useState<Estudiante | null>(null)
@@ -49,14 +50,23 @@ export default function AdminEstudiantesPage() {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const filtered = estudiantes.filter((e) => {
-    const matchSearch =
-      !search ||
-      e.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
-      e.direccion.toLowerCase().includes(search.toLowerCase())
-    const matchCurso = filterCurso === "all" || e.curso === filterCurso
-    return matchSearch && matchCurso
-  })
+  const activos = useMemo(
+    () => mockEstudiantes.filter((e) => e.activo),
+    []
+  )
+
+  const filtered = useMemo(() => {
+    return activos.filter((e) => {
+      const matchSearch =
+        !search ||
+        e.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
+        e.curso.toLowerCase().includes(search.toLowerCase())
+      const matchCurso = filterCurso === "all" || e.curso === filterCurso
+      const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
+      return matchSearch && matchCurso && matchSeccion
+    })
+  }, [activos, search, filterCurso, filterSeccion])
+
 
   const abrirNuevo = () => {
     setEditando(null)
@@ -123,8 +133,8 @@ export default function AdminEstudiantesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Estudiantes</h1>
-          <p className="text-gray-500 text-sm mt-1">{estudiantes.filter(e => e.activo).length} activos de {estudiantes.length}</p>
+          <h1 className="font-serif text-2xl font-bold text-foreground">Estudiantes</h1>
+          <p className="text-muted-foreground text-sm mt-1">{estudiantes.filter(e => e.activo).length} activos de {estudiantes.length}</p>
         </div>
         <Button onClick={abrirNuevo} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
           <Plus className="w-4 h-4" />
@@ -151,6 +161,17 @@ export default function AdminEstudiantesPage() {
             <SelectItem value="all">Todos los cursos</SelectItem>
             {CURSOS.map((c) => (
               <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterSeccion} onValueChange={setFilterSeccion}>
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue placeholder="Sección" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Secciones</SelectItem>
+            {SECCIONES.map((s) => (
+              <SelectItem key={s} value={s}>Sección {s}</SelectItem>
             ))}
           </SelectContent>
         </Select>

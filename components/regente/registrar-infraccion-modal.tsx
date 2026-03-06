@@ -32,8 +32,15 @@ export function RegistrarInfraccionModal({ open, onClose, estudiante, regenteId 
 
     const hoy = todayISO()
 
+    // Tipos de falta ya registrados hoy para este estudiante
+    const registradosHoy = mockInfracciones
+        .filter((i) => i.estudiante_id === estudiante.id && i.fecha === hoy)
+        .map((i) => i.tipo_falta_id)
+
+    const yaRegistradoHoy = tipoFaltaId ? registradosHoy.includes(tipoFaltaId) : false
+
     const handleSubmit = () => {
-        if (!tipoFaltaId) return
+        if (!tipoFaltaId || yaRegistradoHoy) return
 
         // Simula guardar en mock data
         const nueva = {
@@ -114,14 +121,28 @@ export function RegistrarInfraccionModal({ open, onClose, estudiante, regenteId 
                                     <SelectValue placeholder="Selecciona una falta..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {tiposFaltaRegente.map((tf) => (
-                                        <SelectItem key={tf.id} value={tf.id}>
-                                            {tf.nombre}
-                                        </SelectItem>
-                                    ))}
+                                    {tiposFaltaRegente.map((tf) => {
+                                        const bloqueado = registradosHoy.includes(tf.id)
+                                        return (
+                                            <SelectItem key={tf.id} value={tf.id} disabled={bloqueado}>
+                                                <span className={bloqueado ? "text-muted-foreground line-through" : ""}>
+                                                    {tf.nombre}
+                                                </span>
+                                                {bloqueado && (
+                                                    <span className="ml-2 text-xs text-muted-foreground">(ya registrado hoy)</span>
+                                                )}
+                                            </SelectItem>
+                                        )
+                                    })}
                                 </SelectContent>
                             </Select>
-                            <p className="text-xs text-gray-400">Solo se pueden registrar infracciones leves</p>
+                            {yaRegistradoHoy ? (
+                                <p className="text-xs text-destructive font-medium">
+                                    Este tipo de falta ya fue registrado hoy para este estudiante.
+                                </p>
+                            ) : (
+                                <p className="text-xs text-gray-400">Solo se pueden registrar infracciones leves</p>
+                            )}
                         </div>
 
                         {/* Descripción (opcional) */}
@@ -139,7 +160,7 @@ export function RegistrarInfraccionModal({ open, onClose, estudiante, regenteId 
                             <Button variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
                             <Button
                                 onClick={handleSubmit}
-                                disabled={!tipoFaltaId}
+                                disabled={!tipoFaltaId || yaRegistradoHoy}
                                 className="flex-1 bg-[#0f1f3d] hover:bg-[#1a3461] text-white"
                             >
                                 Registrar

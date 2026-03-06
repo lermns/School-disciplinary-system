@@ -112,8 +112,8 @@ export default function AdminRegentesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Regentes</h1>
-          <p className="text-gray-500 text-sm mt-1">{regentes.length} regentes registrados</p>
+          <h1 className="font-serif text-2xl font-bold text-foreground">Regente</h1>
+          <p className="text-muted-foreground text-sm mt-1">{regentes.length} regentes registrados</p>
         </div>
         <Button onClick={abrirNuevo} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
           <Plus className="w-4 h-4" />

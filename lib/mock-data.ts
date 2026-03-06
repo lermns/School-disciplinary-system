@@ -18,26 +18,10 @@ export const mockUsuarios: Usuario[] = [
     avatar_url: null,
     created_at: '2024-02-01T09:00:00Z',
   },
-  {
-    id: 'u3',
-    email: 'regente.lopez@colegiodorado.edu',
-    nombre_completo: 'Juan López',
-    rol: 'regente',
-    avatar_url: null,
-    created_at: '2024-02-10T10:00:00Z',
-  },
-  {
-    id: 'u4',
-    email: 'regente.martinez@colegiodorado.edu',
-    nombre_completo: 'Ana Martínez',
-    rol: 'regente',
-    avatar_url: null,
-    created_at: '2024-03-05T11:00:00Z',
-  },
   // Cuentas de estudiantes — se identifican con su código (campo email)
   {
     id: 'ue1',
-    email: '1001',
+    email: '202601',
     nombre_completo: 'Alejandro Rodríguez',
     rol: 'estudiante',
     avatar_url: null,
@@ -395,6 +379,15 @@ export const mockInfracciones: Infraccion[] = [
   {
     id: 'i12',
     estudiante_id: 'e2',
+    regente_id: 'u3',
+    tipo_falta_id: 'tf2',
+    fecha: '2024-12-03',
+    descripcion: 'Ausencia no justificada a la clase de matemáticas.',
+    created_at: '2024-12-03T08:00:00Z',
+  },
+  {
+    id: 'i19',
+    estudiante_id: 'e14',
     regente_id: 'u3',
     tipo_falta_id: 'tf2',
     fecha: '2024-12-03',
