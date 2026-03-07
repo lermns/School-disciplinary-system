@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (emailOrCode: string, password: string) => Promise<boolean>
   logout: () => void
   isLoading: boolean
+  isInitialized: boolean  // 👈 nuevo
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -17,13 +18,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Usuario | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)  // 👈 nuevo
   const router = useRouter()
 
   useEffect(() => {
     const stored = sessionStorage.getItem("colegio_user")
     if (stored) {
-      setUser(JSON.parse(stored))
+      try {
+        setUser(JSON.parse(stored))
+      } catch {
+        sessionStorage.removeItem("colegio_user")
+      }
     }
+    setIsInitialized(true)  // 👈 siempre marcar como listo al terminar
   }, [])
 
   const login = useCallback(
@@ -39,17 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(foundUser)
         sessionStorage.setItem("colegio_user", JSON.stringify(foundUser))
         setIsLoading(false)
-
         switch (foundUser.rol) {
-          case "admin":
-            router.push("/dashboard/admin")
-            break
-          case "regente":
-            router.push("/dashboard/regente")
-            break
-          case "estudiante":
-            router.push("/dashboard/estudiante")
-            break
+          case "admin": router.push("/dashboard/admin"); break
+          case "regente": router.push("/dashboard/regente"); break
+          case "estudiante": router.push("/dashboard/estudiante"); break
         }
         return true
       }
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router])
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, isInitialized }}>
       {children}
     </AuthContext.Provider>
   )
@@ -75,8 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
+  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider")
   return context
 }
