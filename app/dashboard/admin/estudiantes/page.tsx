@@ -1,334 +1,326 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { mockEstudiantes } from "@/lib/mock-data"
-import type { Estudiante } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useAuth } from "@/lib/auth-context"
+import { mockEstudiantes, getEstudianteInfracciones, getRetrasoCount } from "@/lib/mock-data"
+import { getGravedadConfig, formatDate } from "@/lib/helpers"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, Search, UserCircle, AlertTriangle } from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Clock, FileText, AlertTriangle, UserCircle, BookOpen, CalendarDays } from "lucide-react"
+import type { Infraccion } from "@/lib/types"
 
-const CURSOS = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
-const SECCIONES = ["A", "B", "C"]
-
-const emptyForm = {
-  nombre_completo: "",
-  curso: "1ro",
-  seccion: "A",
-  direccion: "",
+function getInitials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
 }
 
-export default function AdminEstudiantesPage() {
-  const [estudiantes, setEstudiantes] = useState<Estudiante[]>(mockEstudiantes)
-  const [search, setSearch] = useState("")
-  const [filterCurso, setFilterCurso] = useState("all")
-  const [filterSeccion, setFilterSeccion] = useState("all")
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [editando, setEditando] = useState<Estudiante | null>(null)
-  const [eliminando, setEliminando] = useState<Estudiante | null>(null)
-  const [form, setForm] = useState(emptyForm)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+type InfRow = Infraccion
 
-  const activos = useMemo(
-    () => mockEstudiantes.filter((e) => e.activo),
-    []
+// Dialog de detalle reutilizable
+function InfraccionDialog({ selected, onClose }: { selected: InfRow | null; onClose: () => void }) {
+  const gravedad = selected?.tipo_falta ? getGravedadConfig(selected.tipo_falta.gravedad) : null
+  return (
+    <Dialog open={!!selected} onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Detalle de infracción</DialogTitle>
+        </DialogHeader>
+        {selected && (
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+              <Avatar className="size-10">
+                <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                  {selected.estudiante ? getInitials(selected.estudiante.nombre_completo) : "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-semibold text-sm">{selected.estudiante?.nombre_completo}</p>
+                <p className="text-xs text-muted-foreground">{selected.estudiante?.curso} — Sección {selected.estudiante?.seccion}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-start gap-2">
+                <BookOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Tipo de falta</p>
+                  <p className="font-medium">{selected.tipo_falta?.nombre ?? "—"}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <CalendarDays className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Fecha</p>
+                  <p className="font-medium">{formatDate(selected.fecha)}</p>
+                </div>
+              </div>
+            </div>
+
+            {gravedad && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Gravedad:</span>
+                <Badge variant="outline" className={gravedad.className}>{gravedad.label}</Badge>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2">
+              <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Descripción</p>
+                <p className="text-sm leading-relaxed">{selected.descripcion || "Sin descripción."}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
+}
 
-  const filtered = useMemo(() => {
-    return activos.filter((e) => {
-      const matchSearch =
-        !search ||
-        e.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
-        e.curso.toLowerCase().includes(search.toLowerCase())
-      const matchCurso = filterCurso === "all" || e.curso === filterCurso
-      const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
-      return matchSearch && matchCurso && matchSeccion
-    })
-  }, [activos, search, filterCurso, filterSeccion])
+// Dialog de lista por categoría, con click en cada item para ver detalle
+function ListaInfraccionesDialog({
+  titulo,
+  infracciones,
+  open,
+  onClose,
+}: {
+  titulo: string
+  infracciones: InfRow[]
+  open: boolean
+  onClose: () => void
+}) {
+  const [selectedDetalle, setSelectedDetalle] = useState<InfRow | null>(null)
 
+  return (
+    <>
+      <Dialog open={open} onOpenChange={o => !o && onClose()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">{titulo}</DialogTitle>
+          </DialogHeader>
+          {infracciones.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Sin registros.</p>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto pt-1 pr-1">
+              {infracciones.map(inf => {
+                const gravedadCfg = inf.tipo_falta ? getGravedadConfig(inf.tipo_falta.gravedad) : null
+                return (
+                  <button
+                    key={inf.id}
+                    onClick={() => setSelectedDetalle(inf)}
+                    className="w-full text-left rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-sm">{inf.tipo_falta?.nombre ?? "—"}</p>
+                      {gravedadCfg && (
+                        <Badge variant="outline" className={`text-xs shrink-0 ${gravedadCfg.className}`}>{gravedadCfg.label}</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(inf.fecha)}</p>
+                    {inf.descripcion && (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{inf.descripcion}</p>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-  const abrirNuevo = () => {
-    setEditando(null)
-    setForm(emptyForm)
-    setErrors({})
-    setDialogOpen(true)
-  }
+      <InfraccionDialog selected={selectedDetalle} onClose={() => setSelectedDetalle(null)} />
+    </>
+  )
+}
 
-  const abrirEditar = (e: Estudiante) => {
-    setEditando(e)
-    setForm({ nombre_completo: e.nombre_completo, curso: e.curso, seccion: e.seccion, direccion: e.direccion })
-    setErrors({})
-    setDialogOpen(true)
-  }
+export default function EstudianteDashboard() {
+  const { user } = useAuth()
 
-  const confirmarEliminar = (e: Estudiante) => {
-    setEliminando(e)
-    setDeleteDialogOpen(true)
-  }
+  const estudiante = useMemo(() => {
+    if (!user?.estudiante_id) return null
+    return mockEstudiantes.find(e => e.id === user.estudiante_id) ?? null
+  }, [user])
 
-  const validar = () => {
-    const errs: Record<string, string> = {}
-    if (!form.nombre_completo.trim()) errs.nombre_completo = "El nombre es requerido"
-    if (!form.direccion.trim()) errs.direccion = "La dirección es requerida"
-    setErrors(errs)
-    return Object.keys(errs).length === 0
-  }
+  const infracciones = useMemo(() => {
+    if (!estudiante) return []
+    return getEstudianteInfracciones(estudiante.id)
+  }, [estudiante])
 
-  const guardar = () => {
-    if (!validar()) return
-    if (editando) {
-      setEstudiantes((prev) =>
-        prev.map((e) =>
-          e.id === editando.id
-            ? { ...e, nombre_completo: form.nombre_completo, curso: form.curso, seccion: form.seccion, direccion: form.direccion }
-            : e
-        )
-      )
-    } else {
-      const nuevo: Estudiante = {
-        id: `e${Date.now()}`,
-        nombre_completo: form.nombre_completo,
-        curso: form.curso,
-        seccion: form.seccion,
-        direccion: form.direccion,
-        foto_url: null,
-        activo: true,
-        created_at: new Date().toISOString(),
-      }
-      setEstudiantes((prev) => [...prev, nuevo])
-    }
-    setDialogOpen(false)
-  }
+  const retrasos = useMemo(() => {
+    if (!estudiante) return 0
+    return getRetrasoCount(estudiante.id)
+  }, [estudiante])
 
-  const eliminar = () => {
-    if (eliminando) {
-      setEstudiantes((prev) => prev.filter((e) => e.id !== eliminando.id))
-    }
-    setDeleteDialogOpen(false)
-    setEliminando(null)
+  // Estado para los dialogs de lista
+  const [listaAbierta, setListaAbierta] = useState<null | "retrasos" | "faltas" | "leves" | "graves" | "muy_graves">(null)
+  // Estado para detalle directo desde historial
+  const [selectedDetalle, setSelectedDetalle] = useState<InfRow | null>(null)
+
+  const infRetrasos = useMemo(() => infracciones.filter(i => i.tipo_falta_id === "tf1"), [infracciones])
+  const infFaltas = useMemo(() => infracciones.filter(i => i.tipo_falta_id === "tf2"), [infracciones])
+  const infLeves = useMemo(() => infracciones.filter(i => i.tipo_falta?.gravedad === "leve"), [infracciones])
+  const infGraves = useMemo(() => infracciones.filter(i => i.tipo_falta?.gravedad === "grave"), [infracciones])
+  const infMuyGraves = useMemo(() => infracciones.filter(i => i.tipo_falta?.gravedad === "muy_grave"), [infracciones])
+
+  if (!estudiante) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-2">
+        <UserCircle className="w-12 h-12" />
+        <p>No se encontró el perfil de estudiante vinculado a tu cuenta.</p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-bold text-foreground">Estudiantes</h1>
-          <p className="text-muted-foreground text-sm mt-1">{estudiantes.filter(e => e.activo).length} activos de {estudiantes.length}</p>
+      {/* Header */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="w-14 h-14 bg-[#0f1f3d]/10 rounded-full flex items-center justify-center shrink-0">
+          <UserCircle className="w-9 h-9 text-[#0f1f3d]" />
         </div>
-        <Button onClick={abrirNuevo} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
-          <Plus className="w-4 h-4" />
-          Nuevo estudiante
-        </Button>
-      </div>
-
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Buscar por nombre o dirección..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-gray-900">{estudiante.nombre_completo}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{estudiante.curso} — Sección {estudiante.seccion}</p>
+          <p className="text-gray-400 text-xs mt-0.5">{estudiante.direccion}</p>
         </div>
-        <Select value={filterCurso} onValueChange={setFilterCurso}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Todos los cursos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los cursos</SelectItem>
-            {CURSOS.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterSeccion} onValueChange={setFilterSeccion}>
-          <SelectTrigger className="w-full sm:w-36">
-            <SelectValue placeholder="Sección" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Secciones</SelectItem>
-            {SECCIONES.map((s) => (
-              <SelectItem key={s} value={s}>Sección {s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium ${retrasos > 0 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
+          <Clock className="w-4 h-4" />
+          <span>{retrasos} retraso{retrasos !== 1 ? "s" : ""} acumulado{retrasos !== 1 ? "s" : ""}</span>
+        </div>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gray-50/80">
-              <TableHead className="font-semibold text-gray-700">Estudiante</TableHead>
-              <TableHead className="font-semibold text-gray-700">Curso</TableHead>
-              <TableHead className="font-semibold text-gray-700">Dirección</TableHead>
-              {/* <TableHead className="font-semibold text-gray-700">Estado</TableHead> */}
-              <TableHead className="font-semibold text-gray-700 text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-gray-400">
-                  No se encontraron estudiantes
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((est) => (
-                <TableRow key={est.id} className="hover:bg-gray-50/50 transition-colors">
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <UserCircle className="w-8 h-8 text-gray-300 shrink-0" />
-                      <span className="font-medium text-gray-900">{est.nombre_completo}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-gray-700">{est.curso} {est.seccion}</span>
-                  </TableCell>
-                  <TableCell className="text-gray-600 text-sm max-w-xs">
-                    <span className="line-clamp-1">{est.direccion}</span>
-                  </TableCell>
-                  {/* <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={est.activo
-                        ? "bg-green-50 text-green-700 border-green-200 text-xs"
-                        : "bg-gray-50 text-gray-500 border-gray-200 text-xs"
-                      }
-                    >
-                      {est.activo ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </TableCell> */}
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <button
-                        onClick={() => abrirEditar(est)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-[#0f1f3d] hover:bg-gray-100 transition-colors"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => confirmarEliminar(est)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Dialog crear/editar */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editando ? "Editar estudiante" : "Nuevo estudiante"}</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Nombre completo <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="Ej: Juan García López"
-                value={form.nombre_completo}
-                onChange={(e) => setForm((f) => ({ ...f, nombre_completo: e.target.value }))}
-              />
-              {errors.nombre_completo && <p className="text-xs text-red-500">{errors.nombre_completo}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Curso <span className="text-red-500">*</span></Label>
-                <Select value={form.curso} onValueChange={(v) => setForm((f) => ({ ...f, curso: v }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURSOS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Sección <span className="text-red-500">*</span></Label>
-                <Select value={form.seccion} onValueChange={(v) => setForm((f) => ({ ...f, seccion: v }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SECCIONES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Dirección <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="Ej: Calle 45 #12-34, Bogotá"
-                value={form.direccion}
-                onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))}
-              />
-              {errors.direccion && <p className="text-xs text-red-500">{errors.direccion}</p>}
-            </div>
+      {/* Stats — clickeables */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {/* Total infracciones */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+            <FileText className="w-5 h-5 text-blue-600" />
           </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{infracciones.length}</p>
+            <p className="text-xs text-gray-500">Total infracciones</p>
+          </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={guardar} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white">
-              {editando ? "Guardar cambios" : "Registrar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Retrasos — clickeable */}
+        <button
+          onClick={() => setListaAbierta("retrasos")}
+          className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-amber-300 hover:shadow-md transition-all text-left"
+        >
+          <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+            <Clock className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{retrasos}</p>
+            <p className="text-xs text-gray-500">Retrasos</p>
+          </div>
+        </button>
 
-      {/* Alert eliminar */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-500" />
-              Eliminar estudiante
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Eliminar a <strong>{eliminando?.nombre_completo}</strong>? Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={eliminar} className="bg-red-600 hover:bg-red-700 text-white">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Faltas graves — clickeable */}
+        <button
+          onClick={() => setListaAbierta("graves")}
+          className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 col-span-2 md:col-span-1 flex items-center gap-3 hover:border-red-300 hover:shadow-md transition-all text-left"
+        >
+          <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-red-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">
+              {infracciones.filter(i => i.tipo_falta?.gravedad === "grave" || i.tipo_falta?.gravedad === "muy_grave").length}
+            </p>
+            <p className="text-xs text-gray-500">Faltas graves</p>
+          </div>
+        </button>
+      </div>
+
+      {/* Badges adicionales clickeables */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setListaAbierta("leves")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium bg-green-50 text-green-700 border-green-200 hover:bg-green-100 transition-colors"
+        >
+          <span>Faltas leves</span>
+          <span className="font-bold">{infLeves.length}</span>
+        </button>
+        <button
+          onClick={() => setListaAbierta("graves")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 transition-colors"
+        >
+          <span>Faltas graves</span>
+          <span className="font-bold">{infGraves.length}</span>
+        </button>
+        <button
+          onClick={() => setListaAbierta("muy_graves")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-colors"
+        >
+          <span>Faltas muy graves</span>
+          <span className="font-bold">{infMuyGraves.length}</span>
+        </button>
+        <button
+          onClick={() => setListaAbierta("faltas")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 transition-colors"
+        >
+          <span>Faltas</span>
+          <span className="font-bold">{infFaltas.length}</span>
+        </button>
+      </div>
+
+      {/* Historial completo */}
+      <div>
+        <h2 className="font-serif text-xl font-bold text-foreground mb-4">Historial de infracciones</h2>
+        {infracciones.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
+            <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+              <FileText className="w-6 h-6 text-green-500" />
+            </div>
+            <p className="font-medium text-gray-700">Sin infracciones registradas</p>
+            <p className="text-gray-400 text-sm mt-1">¡Excelente comportamiento!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {infracciones.map(inf => {
+              const gravedadCfg = getGravedadConfig(inf.tipo_falta!.gravedad)
+              // Punto 3: mostrar "Admin" o "Regente" según el rol
+              const registradoPor = inf.regente?.rol === "admin" ? "Admin" : "Regente"
+              return (
+                <button
+                  key={inf.id}
+                  onClick={() => setSelectedDetalle(inf)}
+                  className="w-full text-left bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row sm:items-start gap-3 hover:border-primary/30 hover:shadow-md transition-all"
+                >
+                  <div
+                    className="w-1 self-stretch rounded-full shrink-0 hidden sm:block"
+                    style={{ backgroundColor: inf.tipo_falta?.color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <p className="font-semibold text-gray-900">{inf.tipo_falta?.nombre}</p>
+                      <Badge variant="outline" className={`text-xs ${gravedadCfg.className}`}>{gravedadCfg.label}</Badge>
+                    </div>
+                    {inf.descripcion && <p className="text-gray-600 text-sm">{inf.descripcion}</p>}
+                    <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                      <span>{formatDate(inf.fecha)}</span>
+                      <span>·</span>
+                      {/* Punto 3 */}
+                      <span>Registrado por {registradoPor}</span>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Dialogs de lista por categoría */}
+      <ListaInfraccionesDialog titulo={`Retrasos (${infRetrasos.length})`} infracciones={infRetrasos} open={listaAbierta === "retrasos"} onClose={() => setListaAbierta(null)} />
+      <ListaInfraccionesDialog titulo={`Faltas (${infFaltas.length})`} infracciones={infFaltas} open={listaAbierta === "faltas"} onClose={() => setListaAbierta(null)} />
+      <ListaInfraccionesDialog titulo={`Faltas leves (${infLeves.length})`} infracciones={infLeves} open={listaAbierta === "leves"} onClose={() => setListaAbierta(null)} />
+      <ListaInfraccionesDialog titulo={`Faltas graves (${infGraves.length})`} infracciones={infGraves} open={listaAbierta === "graves"} onClose={() => setListaAbierta(null)} />
+      <ListaInfraccionesDialog titulo={`Faltas muy graves (${infMuyGraves.length})`} infracciones={infMuyGraves} open={listaAbierta === "muy_graves"} onClose={() => setListaAbierta(null)} />
+
+      {/* Dialog de detalle individual desde historial */}
+      <InfraccionDialog selected={selectedDetalle} onClose={() => setSelectedDetalle(null)} />
     </div>
   )
 }

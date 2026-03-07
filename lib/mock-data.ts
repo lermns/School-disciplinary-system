@@ -1,6 +1,5 @@
 import type { Usuario, Estudiante, TipoFalta, Infraccion } from './types';
 
-// ── Usuarios ────────────────────────────────────────────────────────────────
 export const mockUsuarios: Usuario[] = [
   {
     id: 'u1',
@@ -18,7 +17,6 @@ export const mockUsuarios: Usuario[] = [
     avatar_url: null,
     created_at: '2024-02-01T09:00:00Z',
   },
-  // Cuentas de estudiantes — se identifican con su código (campo email)
   {
     id: 'ue1',
     email: '202601',
@@ -48,7 +46,6 @@ export const mockUsuarios: Usuario[] = [
   },
 ];
 
-// ── Estudiantes (cursos 1ro–6to, secciones A/B/C) ───────────────────────────
 export const mockEstudiantes: Estudiante[] = [
   {
     id: 'e1',
@@ -202,8 +199,6 @@ export const mockEstudiantes: Estudiante[] = [
   },
 ];
 
-// ── Tipos de Falta ──────────────────────────────────────────────────────────
-// Las 4 leves son las únicas que puede registrar el regente
 export const mockTiposFalta: TipoFalta[] = [
   {
     id: 'tf1',
@@ -211,6 +206,7 @@ export const mockTiposFalta: TipoFalta[] = [
     descripcion: 'El estudiante llega tarde al inicio de clases o después del cambio de hora',
     gravedad: 'leve',
     color: '#22c55e',
+    asignadoRegente: true,
   },
   {
     id: 'tf2',
@@ -218,6 +214,7 @@ export const mockTiposFalta: TipoFalta[] = [
     descripcion: 'Ausencia del estudiante sin justificación válida presentada al regente',
     gravedad: 'leve',
     color: '#22c55e',
+    asignadoRegente: true,
   },
   {
     id: 'tf3',
@@ -225,6 +222,7 @@ export const mockTiposFalta: TipoFalta[] = [
     descripcion: 'Uso no autorizado de dispositivos móviles durante clase o evaluación',
     gravedad: 'leve',
     color: '#22c55e',
+    asignadoRegente: true,
   },
   {
     id: 'tf4',
@@ -232,6 +230,7 @@ export const mockTiposFalta: TipoFalta[] = [
     descripcion: 'No portar el uniforme escolar completo según el reglamento interno',
     gravedad: 'leve',
     color: '#22c55e',
+    asignadoRegente: true,
   },
   {
     id: 'tf5',
@@ -270,10 +269,16 @@ export const mockTiposFalta: TipoFalta[] = [
   },
 ];
 
-// Tipos de falta que puede registrar el regente (solo leves)
-export const tiposFaltaRegente = mockTiposFalta.filter((tf) => tf.gravedad === 'leve');
+// Función dinámica — lee mockTiposFalta en tiempo real para reflejar cambios en la sesión
+export function getTiposFaltaRegente(): TipoFalta[] {
+  return mockTiposFalta.filter((tf) => tf.gravedad === 'leve' && tf.asignadoRegente === true);
+}
 
-// ── Infracciones (sin campo estado) ────────────────────────────────────────
+// Compatibilidad con código existente (estático, para usos que no requieren reactividad)
+export const tiposFaltaRegente = mockTiposFalta.filter(
+  (tf) => tf.gravedad === 'leve' && tf.asignadoRegente === true,
+);
+
 export const mockInfracciones: Infraccion[] = [
   {
     id: 'i1',
@@ -396,7 +401,6 @@ export const mockInfracciones: Infraccion[] = [
   },
 ];
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 export function getInfraccionesConDatos(): Infraccion[] {
   return mockInfracciones.map((inf) => ({
     ...inf,

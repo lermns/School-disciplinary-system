@@ -1,14 +1,16 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { mockEstudiantes, getRetrasoCount } from "@/lib/mock-data"
+import { mockEstudiantes, getRetrasoCount, getTiposFaltaRegente } from "@/lib/mock-data"
 import type { Estudiante } from "@/lib/types"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Clock, Users, AlertTriangle } from "lucide-react"
 import { RegistrarInfraccionModal } from "@/components/regente/registrar-infraccion-modal"
 import { useAuth } from "@/lib/auth-context"
+import { getGravedadConfig } from "@/lib/helpers"
 
 const CURSOS = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
 const SECCIONES = ["A", "B", "C"]
@@ -20,18 +22,15 @@ export default function RegenteDashboard() {
   const [filterSeccion, setFilterSeccion] = useState("all")
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<Estudiante | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [tiposDialogOpen, setTiposDialogOpen] = useState(false)
 
-  const activos = useMemo(
-    () => mockEstudiantes.filter((e) => e.activo),
-    []
-  )
+  const tiposDisponibles = getTiposFaltaRegente()
+
+  const activos = useMemo(() => mockEstudiantes.filter(e => e.activo), [])
 
   const filtered = useMemo(() => {
-    return activos.filter((e) => {
-      const matchSearch =
-        !search ||
-        e.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
-        e.curso.toLowerCase().includes(search.toLowerCase())
+    return activos.filter(e => {
+      const matchSearch = !search || e.nombre_completo.toLowerCase().includes(search.toLowerCase()) || e.curso.toLowerCase().includes(search.toLowerCase())
       const matchCurso = filterCurso === "all" || e.curso === filterCurso
       const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
       return matchSearch && matchCurso && matchSeccion
@@ -45,12 +44,9 @@ export default function RegenteDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="font-serif text-2xl font-bold text-foreground">Panel del Regente</h1>
-        <p className="text-sm text-muted-foreground">
-          Bienvenido, registra infracciones leves.
-        </p>
+        <p className="text-sm text-muted-foreground">Bienvenido, registra infracciones leves.</p>
       </div>
 
       {/* Stats */}
@@ -64,15 +60,21 @@ export default function RegenteDashboard() {
             <p className="text-xs text-gray-500">Estudiantes activos</p>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+
+        {/* Punto 4 — tarjeta clickeable */}
+        <button
+          onClick={() => setTiposDialogOpen(true)}
+          className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
+        >
           <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">4</p>
+            <p className="text-2xl font-bold text-gray-900">{tiposDisponibles.length}</p>
             <p className="text-xs text-gray-500">Tipos de falta disponibles</p>
           </div>
-        </div>
+        </button>
+
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 col-span-2 md:col-span-1 flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
             <Clock className="w-5 h-5 text-amber-600" />
@@ -91,30 +93,22 @@ export default function RegenteDashboard() {
           <Input
             placeholder="Buscar estudiante..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
         <Select value={filterCurso} onValueChange={setFilterCurso}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Todos los cursos" />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Todos los cursos" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los cursos</SelectItem>
-            {CURSOS.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
+            {CURSOS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterSeccion} onValueChange={setFilterSeccion}>
-          <SelectTrigger className="w-full sm:w-36">
-            <SelectValue placeholder="Sección" />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Sección" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Secciones</SelectItem>
-            {SECCIONES.map((s) => (
-              <SelectItem key={s} value={s}>Sección {s}</SelectItem>
-            ))}
+            {SECCIONES.map(s => <SelectItem key={s} value={s}>Sección {s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -122,11 +116,9 @@ export default function RegenteDashboard() {
       {/* Lista de estudiantes */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400">
-            No se encontraron estudiantes
-          </div>
+          <div className="col-span-full text-center py-12 text-gray-400">No se encontraron estudiantes</div>
         ) : (
-          filtered.map((est) => {
+          filtered.map(est => {
             const retrasos = getRetrasoCount(est.id)
             return (
               <div
@@ -136,28 +128,17 @@ export default function RegenteDashboard() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 group-hover:text-[#0f1f3d] transition-colors truncate">
-                      {est.nombre_completo}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {est.curso} — Sección {est.seccion}
-                    </p>
+                    <p className="font-semibold text-gray-900 group-hover:text-[#0f1f3d] transition-colors truncate">{est.nombre_completo}</p>
+                    <p className="text-sm text-gray-500 mt-0.5">{est.curso} — Sección {est.seccion}</p>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 text-xs bg-[#0f1f3d]/5 text-[#0f1f3d] border-[#0f1f3d]/20"
-                  >
+                  <Badge variant="outline" className="shrink-0 text-xs bg-[#0f1f3d]/5 text-[#0f1f3d] border-[#0f1f3d]/20">
                     Registrar falta
                   </Badge>
                 </div>
-
-                {/* Contador de retrasos */}
                 <div className="mt-3 flex items-center gap-1.5">
                   <Clock className={`w-3.5 h-3.5 ${retrasos > 0 ? "text-amber-500" : "text-gray-300"}`} />
                   <span className={`text-xs font-medium ${retrasos > 0 ? "text-amber-600" : "text-gray-400"}`}>
-                    {retrasos === 0
-                      ? "Sin retrasos"
-                      : `${retrasos} retraso${retrasos > 1 ? "s" : ""} acumulado${retrasos > 1 ? "s" : ""}`}
+                    {retrasos === 0 ? "Sin retrasos" : `${retrasos} retraso${retrasos > 1 ? "s" : ""} acumulado${retrasos > 1 ? "s" : ""}`}
                   </span>
                 </div>
               </div>
@@ -165,6 +146,36 @@ export default function RegenteDashboard() {
           })
         )}
       </div>
+
+      {/* Dialog tipos de falta disponibles */}
+      <Dialog open={tiposDialogOpen} onOpenChange={setTiposDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Faltas disponibles para registrar</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 pt-1">
+            {tiposDisponibles.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No hay tipos de falta asignados al regente.</p>
+            ) : (
+              tiposDisponibles.map(tf => {
+                const gravedadCfg = getGravedadConfig(tf.gravedad)
+                return (
+                  <div key={tf.id} className="flex items-center justify-between rounded-lg border p-3 gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tf.color }} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{tf.nombre}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{tf.descripcion}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`text-xs shrink-0 ${gravedadCfg.className}`}>{gravedadCfg.label}</Badge>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal registrar infracción */}
       {estudianteSeleccionado && (

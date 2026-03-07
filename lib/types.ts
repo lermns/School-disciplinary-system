@@ -3,12 +3,12 @@ export type Gravedad = 'leve' | 'grave' | 'muy_grave';
 
 export interface Usuario {
   id: string;
-  email: string; // Para rol "estudiante", este campo es su código (ej: "1001")
+  email: string;
   nombre_completo: string;
   rol: Rol;
   avatar_url: string | null;
   created_at: string;
-  estudiante_id?: string; // Solo para rol "estudiante"
+  estudiante_id?: string;
 }
 
 export interface Estudiante {
@@ -28,6 +28,7 @@ export interface TipoFalta {
   descripcion: string;
   gravedad: Gravedad;
   color: string;
+  asignadoRegente?: boolean;
 }
 
 export interface Infraccion {
@@ -38,7 +39,6 @@ export interface Infraccion {
   fecha: string;
   descripcion: string;
   created_at: string;
-  // Joined fields
   estudiante?: Estudiante;
   regente?: Usuario;
   tipo_falta?: TipoFalta;

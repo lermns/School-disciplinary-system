@@ -1,237 +1,123 @@
 "use client"
 
-import { useState } from "react"
-import { mockUsuarios } from "@/lib/mock-data"
-import type { Usuario } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useMemo } from "react"
+import { mockUsuarios, getInfraccionesConDatos } from "@/lib/mock-data"
+import { getGravedadConfig, formatDate } from "@/lib/helpers"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Trash2, Search, UserCircle, AlertTriangle } from "lucide-react"
+import { ShieldCheck, FileText } from "lucide-react"
 
-const emptyForm = { nombre_completo: "", email: "" }
+function getInitials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
+}
 
-export default function AdminRegentesPage() {
-  const [regentes, setRegentes] = useState<Usuario[]>(
-    mockUsuarios.filter((u) => u.rol === "regente")
-  )
-  const [search, setSearch] = useState("")
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [editando, setEditando] = useState<Usuario | null>(null)
-  const [eliminando, setEliminando] = useState<Usuario | null>(null)
-  const [form, setForm] = useState(emptyForm)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+export default function AdminRegentePage() {
+  const regente = useMemo(() => mockUsuarios.find(u => u.rol === "regente") ?? null, [])
 
-  const filtered = regentes.filter(
-    (r) =>
-      !search ||
-      r.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
-      r.email.toLowerCase().includes(search.toLowerCase())
-  )
+  const infraccionesRegente = useMemo(() => {
+    if (!regente) return []
+    return getInfraccionesConDatos().filter(
+      inf => inf.regente_id === regente.id && inf.tipo_falta?.gravedad === "leve"
+    )
+  }, [regente])
 
-  const abrirNuevo = () => {
-    setEditando(null)
-    setForm(emptyForm)
-    setErrors({})
-    setDialogOpen(true)
-  }
-
-  const abrirEditar = (r: Usuario) => {
-    setEditando(r)
-    setForm({ nombre_completo: r.nombre_completo, email: r.email })
-    setErrors({})
-    setDialogOpen(true)
-  }
-
-  const confirmarEliminar = (r: Usuario) => {
-    setEliminando(r)
-    setDeleteDialogOpen(true)
-  }
-
-  const validar = () => {
-    const errs: Record<string, string> = {}
-    if (!form.nombre_completo.trim()) errs.nombre_completo = "El nombre es requerido"
-    if (!form.email.trim()) errs.email = "El email es requerido"
-    else if (!form.email.includes("@")) errs.email = "Email inválido"
-    setErrors(errs)
-    return Object.keys(errs).length === 0
-  }
-
-  const guardar = () => {
-    if (!validar()) return
-    if (editando) {
-      setRegentes((prev) =>
-        prev.map((r) =>
-          r.id === editando.id
-            ? { ...r, nombre_completo: form.nombre_completo, email: form.email }
-            : r
-        )
-      )
-    } else {
-      const nuevo: Usuario = {
-        id: `u${Date.now()}`,
-        nombre_completo: form.nombre_completo,
-        email: form.email,
-        rol: "regente",
-        avatar_url: null,
-        created_at: new Date().toISOString(),
-      }
-      setRegentes((prev) => [...prev, nuevo])
-    }
-    setDialogOpen(false)
-  }
-
-  const eliminar = () => {
-    if (eliminando) {
-      setRegentes((prev) => prev.filter((r) => r.id !== eliminando.id))
-    }
-    setDeleteDialogOpen(false)
-    setEliminando(null)
+  if (!regente) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-2">
+        <ShieldCheck className="w-12 h-12 opacity-30" />
+        <p>No hay ningún regente registrado en el sistema.</p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-bold text-foreground">Regente</h1>
-          <p className="text-muted-foreground text-sm mt-1">{regentes.length} regentes registrados</p>
-        </div>
-        <Button onClick={abrirNuevo} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
-          <Plus className="w-4 h-4" />
-          Nuevo regente
-        </Button>
-      </div> */}
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <Input
-          placeholder="Buscar regente..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div>
+        <h1 className="font-serif text-2xl font-bold text-foreground">Regente</h1>
+        <p className="text-sm text-muted-foreground">Perfil y registro de infracciones leves</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gray-50/80">
-              <TableHead className="font-semibold text-gray-700">Nombre</TableHead>
-              <TableHead className="font-semibold text-gray-700">Email</TableHead>
-              <TableHead className="font-semibold text-gray-700">Rol</TableHead>
-              <TableHead className="font-semibold text-gray-700 text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((r) => (
-              <TableRow key={r.id} className="hover:bg-gray-50/50">
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <UserCircle className="w-7 h-7 text-gray-300 shrink-0" />
-                    <span className="font-medium text-gray-900">{r.nombre_completo}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-gray-600 text-sm">{r.email}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                    Regente
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <button
-                      onClick={() => abrirEditar(r)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-[#0f1f3d] hover:bg-gray-100 transition-colors"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => confirmarEliminar(r)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editando ? "Editar regente" : "Nuevo regente"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Nombre completo <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="Ej: María García"
-                value={form.nombre_completo}
-                onChange={(e) => setForm((f) => ({ ...f, nombre_completo: e.target.value }))}
-              />
-              {errors.nombre_completo && <p className="text-xs text-red-500">{errors.nombre_completo}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email <span className="text-red-500">*</span></Label>
-              <Input
-                type="email"
-                placeholder="regente@colegiodorado.edu"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              />
-              {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
-            </div>
+      {/* Perfil */}
+      <Card>
+        <CardContent className="flex items-center gap-4 p-5">
+          <Avatar className="size-14">
+            <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
+              {getInitials(regente.nombre_completo)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <p className="font-bold text-foreground text-base">{regente.nombre_completo}</p>
+            <p className="text-sm text-muted-foreground">{regente.email}</p>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={guardar} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white">
-              {editando ? "Guardar" : "Crear regente"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+            Regente
+          </Badge>
+        </CardContent>
+      </Card>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-500" />
-              Eliminar regente
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Eliminar a <strong>{eliminando?.nombre_completo}</strong>? Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={eliminar} className="bg-red-600 hover:bg-red-700 text-white">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Infracciones leves registradas */}
+      <div>
+        <h2 className="font-serif text-lg font-semibold text-foreground mb-3">
+          Infracciones leves registradas
+          <span className="ml-2 text-sm font-normal text-muted-foreground">({infraccionesRegente.length})</span>
+        </h2>
+
+        {infraccionesRegente.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
+            <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+              <FileText className="w-6 h-6 text-green-500" />
+            </div>
+            <p className="font-medium text-gray-700">Sin infracciones leves registradas</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50/80">
+                  <TableHead className="font-semibold text-gray-700">Estudiante</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Tipo de Falta</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Fecha</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Descripción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {infraccionesRegente.map(inf => {
+                  const gravedadCfg = getGravedadConfig(inf.tipo_falta!.gravedad)
+                  return (
+                    <TableRow key={inf.id} className="hover:bg-gray-50/50">
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="size-7">
+                            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                              {inf.estudiante ? getInitials(inf.estudiante.nombre_completo) : "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{inf.estudiante?.nombre_completo}</p>
+                            <p className="text-xs text-muted-foreground">{inf.estudiante?.curso} {inf.estudiante?.seccion}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{inf.tipo_falta?.nombre}</span>
+                          <Badge variant="outline" className={`text-xs ${gravedadCfg.className}`}>{gravedadCfg.label}</Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(inf.fecha)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs">
+                        <span className="line-clamp-2">{inf.descripcion}</span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

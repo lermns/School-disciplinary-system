@@ -37,7 +37,7 @@ const adminNav: NavItem[] = [
   { label: "Estudiantes", href: "/dashboard/admin/estudiantes", icon: Users },
   { label: "Infracciones", href: "/dashboard/admin/infracciones", icon: ClipboardList },
   { label: "Tipos de Falta", href: "/dashboard/admin/tipos-falta", icon: FileText },
-  { label: "Regentes", href: "/dashboard/admin/regentes", icon: ShieldCheck },
+  { label: "Regente", href: "/dashboard/admin/regentes", icon: ShieldCheck },
   { label: "Reportes", href: "/dashboard/admin/reportes", icon: BarChart3 },
 ]
 
