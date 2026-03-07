@@ -101,7 +101,7 @@ export default function AdminTiposFaltaPage() {
           <h1 className="font-serif text-2xl font-bold text-foreground">Tipos de Falta</h1>
           <p className="text-muted-foreground text-sm mt-1">{tipos.length} tipos registrados</p>
         </div>
-        <Button onClick={abrirNuevo} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
+        <Button onClick={abrirNuevo} className="cursor-pointer bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2">
           <Plus className="w-4 h-4" />
           Nuevo tipo
         </Button>
@@ -123,10 +123,10 @@ export default function AdminTiposFaltaPage() {
                   <p className="font-semibold text-gray-900 truncate">{tipo.nombre}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => abrirEditar(tipo)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#0f1f3d] hover:bg-gray-100 transition-colors">
+                  <button onClick={() => abrirEditar(tipo)} className="cursor-pointer p-1.5 rounded-lg text-gray-400 hover:text-[#0f1f3d] hover:bg-gray-100 transition-colors">
                     <Pencil className="w-4 h-4" />
                   </button>
-                  <button onClick={() => confirmarEliminar(tipo)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                  <button onClick={() => confirmarEliminar(tipo)} className="cursor-pointer p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -160,16 +160,18 @@ export default function AdminTiposFaltaPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Gravedad</Label>
+              <Label className="cursor-pointer">Gravedad</Label>
               <Select
                 value={form.gravedad}
                 onValueChange={v => setForm(f => ({ ...f, gravedad: v as Gravedad, asignadoRegente: v !== "leve" ? false : f.asignadoRegente }))}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="leve">Leve</SelectItem>
-                  <SelectItem value="grave">Grave</SelectItem>
-                  <SelectItem value="muy_grave">Muy Grave</SelectItem>
+                  <SelectItem value="leve" className="cursor-pointer hover:bg-muted/50">Leve</SelectItem>
+                  <SelectItem value="grave" className="cursor-pointer hover:bg-muted/50">Grave</SelectItem>
+                  <SelectItem value="muy_grave" className="cursor-pointer hover:bg-muted/50">Muy Grave</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -199,8 +201,8 @@ export default function AdminTiposFaltaPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={guardar} disabled={!form.nombre.trim()} className="bg-[#0f1f3d] hover:bg-[#1a3461] text-white">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="cursor-pointer">Cancelar</Button>
+            <Button onClick={guardar} disabled={!form.nombre.trim()} className="cursor-pointer bg-[#0f1f3d] hover:bg-[#1a3461] text-white">
               {editando ? "Guardar cambios" : "Crear tipo"}
             </Button>
           </DialogFooter>
@@ -211,7 +213,7 @@ export default function AdminTiposFaltaPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+            <AlertDialogTitle className="flex items-center gap-2 cursor-pointer text-red-600">
               <AlertTriangle className="w-5 h-5 text-red-500" />
               Eliminar tipo de falta
             </AlertDialogTitle>
@@ -220,8 +222,8 @@ export default function AdminTiposFaltaPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={eliminar} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+            <AlertDialogCancel className="cursor-pointer">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={eliminar} className="bg-red-600 hover:bg-red-700 text-white cursor-pointer">Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -79,7 +79,29 @@ function NuevaInfraccionModal({
   const estudianteSeleccionado = mockEstudiantes.find((e) => e.id === estudianteId)
   const tipoSeleccionado = mockTiposFalta.find((tf) => tf.id === tipoFaltaId)
 
-  const canSubmit = estudianteId && tipoFaltaId && fecha
+  // Faltas leves ya registradas para este estudiante en la fecha seleccionada
+  const levesDuplicadasEnFecha = useMemo(() => {
+    if (!estudianteId || !fecha) return new Set<string>()
+    return new Set(
+      mockInfracciones
+        .filter((i) => {
+          const tf = mockTiposFalta.find((t) => t.id === i.tipo_falta_id)
+          return (
+            i.estudiante_id === estudianteId &&
+            i.fecha === fecha &&
+            tf?.gravedad === "leve"
+          )
+        })
+        .map((i) => i.tipo_falta_id)
+    )
+  }, [estudianteId, fecha])
+
+  const esDuplicadoLeve =
+    tipoFaltaId !== "" &&
+    tipoSeleccionado?.gravedad === "leve" &&
+    levesDuplicadasEnFecha.has(tipoFaltaId)
+
+  const canSubmit = estudianteId && tipoFaltaId && fecha && !esDuplicadoLeve
 
   const handleSubmit = () => {
     if (!canSubmit) return
@@ -142,6 +164,7 @@ function NuevaInfraccionModal({
                   onChange={(e) => {
                     setSearch(e.target.value)
                     setEstudianteId("")
+                    setTipoFaltaId("")
                   }}
                   className="pl-9"
                 />
@@ -157,6 +180,7 @@ function NuevaInfraccionModal({
                         key={e.id}
                         onClick={() => {
                           setEstudianteId(e.id)
+                          setTipoFaltaId("")
                           setSearch("")
                         }}
                         className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
@@ -193,13 +217,30 @@ function NuevaInfraccionModal({
                     </div>
                   </div>
                   <button
-                    onClick={() => setEstudianteId("")}
+                    onClick={() => {
+                      setEstudianteId("")
+                      setTipoFaltaId("")
+                    }}
                     className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                   >
                     Cambiar
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* Fecha — antes del tipo para que la validación use la fecha correcta */}
+            <div className="space-y-1.5">
+              <Label>Fecha <span className="text-destructive">*</span></Label>
+              <Input
+                type="date"
+                value={fecha}
+                onChange={(e) => {
+                  setFecha(e.target.value)
+                  setTipoFaltaId("") // resetear tipo al cambiar fecha para re-evaluar duplicados
+                }}
+                max={todayISO()}
+              />
             </div>
 
             {/* Tipo de falta */}
@@ -212,34 +253,38 @@ function NuevaInfraccionModal({
                 <SelectContent>
                   {mockTiposFalta.map((tf) => {
                     const g = getGravedadConfig(tf.gravedad)
+                    const bloqueado =
+                      tf.gravedad === "leve" &&
+                      estudianteId !== "" &&
+                      levesDuplicadasEnFecha.has(tf.id)
                     return (
-                      <SelectItem key={tf.id} value={tf.id}>
+                      <SelectItem key={tf.id} value={tf.id} disabled={bloqueado}>
                         <div className="flex items-center gap-2">
                           <div
                             className="size-2 rounded-full shrink-0"
                             style={{ backgroundColor: tf.color }}
                           />
-                          <span>{tf.nombre}</span>
+                          <span className={bloqueado ? "line-through text-muted-foreground" : ""}>
+                            {tf.nombre}
+                          </span>
                           <span className={`ml-1 text-xs ${g.className} px-1.5 py-0.5 rounded border`}>
                             {g.label}
                           </span>
+                          {bloqueado && (
+                            <span className="text-xs text-muted-foreground">(ya registrado)</span>
+                          )}
                         </div>
                       </SelectItem>
                     )
                   })}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Fecha */}
-            <div className="space-y-1.5">
-              <Label>Fecha <span className="text-destructive">*</span></Label>
-              <Input
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                max={todayISO()}
-              />
+              {esDuplicadoLeve && (
+                <p className="text-xs text-destructive font-medium">
+                  Esta falta leve ya fue registrada el{" "}
+                  {fecha === todayISO() ? "día de hoy" : formatDate(fecha)} para este estudiante.
+                </p>
+              )}
             </div>
 
             {/* Descripción */}
@@ -333,25 +378,25 @@ export default function AdminInfraccionesPage() {
           />
         </div>
         <Select value={filterGravedad} onValueChange={setFilterGravedad}>
-          <SelectTrigger className="w-full sm:w-44">
+          <SelectTrigger className="w-full sm:w-44 cursor-pointer">
             <Filter className="w-4 h-4 mr-2 text-gray-400" />
             <SelectValue placeholder="Gravedad" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            <SelectItem value="leve">Leve</SelectItem>
-            <SelectItem value="grave">Grave</SelectItem>
-            <SelectItem value="muy_grave">Muy Grave</SelectItem>
+            <SelectItem value="all" className="cursor-pointer">Todas</SelectItem>
+            <SelectItem value="leve" className="cursor-pointer">Leve</SelectItem>
+            <SelectItem value="grave" className="cursor-pointer">Grave</SelectItem>
+            <SelectItem value="muy_grave" className="cursor-pointer">Muy Grave</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterTipo} onValueChange={setFilterTipo}>
-          <SelectTrigger className="w-full sm:w-52">
+          <SelectTrigger className="w-full sm:w-52 cursor-pointer">
             <SelectValue placeholder="Tipo de falta" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los tipos</SelectItem>
+            <SelectItem value="all" className="cursor-pointer">Todos los tipos</SelectItem>
             {mockTiposFalta.map((tf) => (
-              <SelectItem key={tf.id} value={tf.id}>
+              <SelectItem key={tf.id} value={tf.id} className="cursor-pointer">
                 {tf.nombre}
               </SelectItem>
             ))}
@@ -387,7 +432,7 @@ export default function AdminInfraccionesPage() {
                 return (
                   <TableRow
                     key={inf.id}
-                    className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                    className="hover:bg-gray-300/50 transition-colors cursor-pointer"
                     onClick={() => setSelected(inf)}
                   >
                     <TableCell className="font-medium text-gray-900">
@@ -404,13 +449,14 @@ export default function AdminInfraccionesPage() {
                     </TableCell>
                     <TableCell className="text-gray-600 text-sm hidden md:table-cell">
                       <div className="flex items-center gap-1.5">
+                        {/* <span>{registradoPor?.nombre_completo ?? "—"}</span> */}
                         {registradoPor?.rol === "admin" && (
                           <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
                             Admin
                           </Badge>
                         )}
-                        {registradoPor?.rol !== "admin" && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                        {registradoPor?.rol === "regente" && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-600 border-purple-200">
                             Regente
                           </Badge>
                         )}
@@ -490,10 +536,15 @@ export default function AdminInfraccionesPage() {
                 {registradoPor && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-xs text-muted-foreground">Registrado por:</span>
-                    <span className="font-medium text-xs">{registradoPor.nombre_completo}</span>
+                    {/* <span className="font-medium text-xs">{registradoPor.nombre_completo}</span> */}
                     {registradoPor.rol === "admin" && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-200">
                         Admin
+                      </Badge>
+                    )}
+                    {registradoPor.rol === "regente" && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 text-purple-600 border-purple-200">
+                        Regente
                       </Badge>
                     )}
                   </div>

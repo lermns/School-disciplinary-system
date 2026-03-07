@@ -166,7 +166,7 @@ function EstudianteDetalleDialog({
                         <button
                           key={inf.id}
                           onClick={() => setSelectedInf(inf)}
-                          className="w-full text-left rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                          className="w-full text-left rounded-lg border p-3 hover:bg-muted/50 transition-colors cursor-pointer"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <p className="font-medium text-sm">{inf.tipo_falta?.nombre ?? "—"}</p>
@@ -259,7 +259,7 @@ export default function AdminEstudiantesPage() {
           <SelectContent>
             <SelectItem value="all">Secciones</SelectItem>
             {SECCIONES.map((s) => (
-              <SelectItem key={s} value={s}>Sección {s}</SelectItem>
+              <SelectItem key={s} value={s} className="cursor-pointer hover:bg-muted/50">Sección {s}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -314,7 +314,7 @@ export default function AdminEstudiantesPage() {
                     return (
                       <TableRow
                         key={est.id}
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-300/50 transition-colors"
                         onClick={() => setEstudianteDetalle(est)}
                       >
                         <TableCell>

@@ -88,9 +88,9 @@ export default function AdminRegentePage() {
                   return (
                     <TableRow key={inf.id} className="hover:bg-gray-50/50">
                       <TableCell>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 text-gray-900">
                           <Avatar className="size-7">
-                            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold ">
                               {inf.estudiante ? getInitials(inf.estudiante.nombre_completo) : "?"}
                             </AvatarFallback>
                           </Avatar>
@@ -101,13 +101,13 @@ export default function AdminRegentePage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 text-gray-900">
                           <span className="text-sm">{inf.tipo_falta?.nombre}</span>
                           <Badge variant="outline" className={`text-xs ${gravedadCfg.className}`}>{gravedadCfg.label}</Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatDate(inf.fecha)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs">
+                      <TableCell className="text-sm text-gray-900 whitespace-nowrap ">{formatDate(inf.fecha)}</TableCell>
+                      <TableCell className="text-sm text-gray-900 max-w-xs">
                         <span className="line-clamp-2">{inf.descripcion}</span>
                       </TableCell>
                     </TableRow>

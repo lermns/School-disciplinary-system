@@ -62,9 +62,9 @@ export default function RegenteDashboard() {
         </div>
 
         {/* Punto 4 — tarjeta clickeable */}
-        <button
+        {/* <button
           onClick={() => setTiposDialogOpen(true)}
-          className="cursor-pointer bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
+          className="cursor-pointer bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50/50 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
         >
           <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-green-600" />
@@ -72,6 +72,22 @@ export default function RegenteDashboard() {
           <div>
             <p className="text-2xl font-bold text-gray-900">{tiposDisponibles.length}</p>
             <p className="text-xs text-gray-500">Tipos de falta disponibles</p>
+          </div>
+        </button> */}
+        <button
+          onClick={() => setTiposDialogOpen(true)}
+          className="group cursor-pointer bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
+        >
+          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-green-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900 transition-colors">
+              {tiposDisponibles.length}
+            </p>
+            <p className="text-xs text-gray-500 transition-colors">
+              Tipos de falta disponibles
+            </p>
           </div>
         </button>
 
@@ -98,17 +114,17 @@ export default function RegenteDashboard() {
           />
         </div>
         <Select value={filterCurso} onValueChange={setFilterCurso}>
-          <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Todos los cursos" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-44 cursor-pointer"><SelectValue placeholder="Todos los cursos" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los cursos</SelectItem>
-            {CURSOS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {CURSOS.map(c => <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterSeccion} onValueChange={setFilterSeccion}>
-          <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Sección" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36 cursor-pointer"><SelectValue placeholder="Sección" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Secciones</SelectItem>
-            {SECCIONES.map(s => <SelectItem key={s} value={s}>Sección {s}</SelectItem>)}
+            {SECCIONES.map(s => <SelectItem key={s} value={s} className="cursor-pointer">Sección {s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -128,7 +144,7 @@ export default function RegenteDashboard() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 group-hover:text-[#0f1f3d] transition-colors truncate">{est.nombre_completo}</p>
+                    <p className="transition-colors font-semibold text-gray-900 truncate">{est.nombre_completo}</p>
                     <p className="text-sm text-gray-500 mt-0.5">{est.curso} — Sección {est.seccion}</p>
                   </div>
                   <Badge variant="outline" className="shrink-0 text-xs bg-[#0f1f3d]/5 text-[#0f1f3d] border-[#0f1f3d]/20">

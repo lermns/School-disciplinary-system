@@ -51,8 +51,8 @@ export default function EstudianteDashboard() {
         </div>
         {/* Retrasos */}
         <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium ${retrasos > 0
-            ? "bg-amber-50 text-amber-700 border-amber-200"
-            : "bg-gray-50 text-gray-500 border-gray-200"
+          ? "bg-amber-50 text-amber-700 border-amber-200"
+          : "bg-gray-50 text-gray-500 border-gray-200"
           }`}>
           <Clock className="w-4 h-4" />
           <span>{retrasos} retraso{retrasos !== 1 ? "s" : ""} acumulado{retrasos !== 1 ? "s" : ""}</span>
@@ -132,7 +132,7 @@ export default function EstudianteDashboard() {
                     <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                       <span>{formatDate(inf.fecha)}</span>
                       <span>·</span>
-                      <span>Registrado por {inf.regente?.nombre_completo}</span>
+                      <span>Registrado por {inf.regente?.rol === "regente" ? "Regente" : "Admin"}</span>
                     </div>
                   </div>
                 </div>

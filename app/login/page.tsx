@@ -99,7 +99,7 @@ export default function LoginPage() {
 
       {/* Right — formulario */}
       {/* Form Container */}
-      
+
       <div className="flex flex-1 items-center justify-center px-6 py-12 lg:px-12">
         <div className="w-full max-w-sm space-y-8">
           {/* Icon & Title */}
@@ -237,15 +237,19 @@ export default function LoginPage() {
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>
                 <span className="font-medium text-foreground">Admin:</span>{" "}
-                admin@colegiodorado.edu
+                202600educadorado
               </p>
               <p>
                 <span className="font-medium text-foreground">Regente:</span>{" "}
-                regente.garcia@colegiodorado.edu
+                202600educaregente
               </p>
               <p>
-                <span className="font-medium text-foreground">Estudiante:</span>{" "}
-                1001
+                <span className="font-medium text-foreground">Estudiante 2:</span>{" "}
+                202601
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Estudiante 1:</span>{" "}
+                202602
               </p>
               <p className="mt-1 text-muted-foreground/70 italic">
                 Contraseña: cualquiera

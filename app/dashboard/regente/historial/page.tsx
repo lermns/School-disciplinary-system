@@ -82,14 +82,14 @@ export default function RegenteHistorialPage() {
             />
           </div>
           <Select value={filterGravedad} onValueChange={setFilterGravedad}>
-            <SelectTrigger className="w-full sm:w-44">
+            <SelectTrigger className="w-full sm:w-44 cursor-pointer">
               <SelectValue placeholder="Gravedad" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas las gravedades</SelectItem>
-              <SelectItem value="leve">Leve</SelectItem>
-              <SelectItem value="grave">Grave</SelectItem>
-              <SelectItem value="muy_grave">Muy Grave</SelectItem>
+              <SelectItem value="all" className="cursor-pointer">Todas las gravedades</SelectItem>
+              <SelectItem value="leve" className="cursor-pointer">Leve</SelectItem>
+              <SelectItem value="grave" className="cursor-pointer">Grave</SelectItem>
+              <SelectItem value="muy_grave" className="cursor-pointer">Muy Grave</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
@@ -160,12 +160,14 @@ export default function RegenteHistorialPage() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm text-muted-foreground">
-                              {inf.regente?.nombre_completo ?? "—"}
-                            </span>
                             {esAdmin && (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
                                 Admin
+                              </Badge>
+                            )}
+                            {!esAdmin && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                                Regente
                               </Badge>
                             )}
                           </div>
