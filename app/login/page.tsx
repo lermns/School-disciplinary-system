@@ -99,13 +99,25 @@ export default function LoginPage() {
 
       {/* Right — formulario */}
       {/* Form Container */}
+      
       <div className="flex flex-1 items-center justify-center px-6 py-12 lg:px-12">
         <div className="w-full max-w-sm space-y-8">
-
           {/* Icon & Title */}
           <div className="space-y-2 text-center">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary">
-              <GraduationCap className="size-7 text-primary-foreground" />
+            <div className="hidden lg:block">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary">
+                <GraduationCap className="size-7 text-primary-foreground" />
+              </div>
+            </div>
+
+            <div className="lg:hidden flex justify-center">
+              <div className="flex size-16 items-center justify-center rounded-xl bg-gold/20 backdrop-blur-sm">
+                <img
+                  src="/images/logodorado.png"
+                  alt="Logo"
+                  className="size-22 object-contain"
+                />
+              </div>
             </div>
             <h2 className="font-serif text-2xl font-bold tracking-tight text-foreground">
               Iniciar Sesión
@@ -240,6 +252,9 @@ export default function LoginPage() {
               </p>
             </div>
           </div>
+          <p className="block lg:hidden text-xs text-white/50">
+            {"© 2026 Todos los derechos reservados. Desarrollado por Leonardo Ramos."}
+          </p>
         </div>
       </div>
     </div>

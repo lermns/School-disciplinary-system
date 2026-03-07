@@ -185,7 +185,7 @@ export default function AdminEstudiantesPage() {
               <TableHead className="font-semibold text-gray-700">Estudiante</TableHead>
               <TableHead className="font-semibold text-gray-700">Curso</TableHead>
               <TableHead className="font-semibold text-gray-700">Dirección</TableHead>
-              <TableHead className="font-semibold text-gray-700">Estado</TableHead>
+              {/* <TableHead className="font-semibold text-gray-700">Estado</TableHead> */}
               <TableHead className="font-semibold text-gray-700 text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -211,7 +211,7 @@ export default function AdminEstudiantesPage() {
                   <TableCell className="text-gray-600 text-sm max-w-xs">
                     <span className="line-clamp-1">{est.direccion}</span>
                   </TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     <Badge
                       variant="outline"
                       className={est.activo
@@ -221,7 +221,7 @@ export default function AdminEstudiantesPage() {
                     >
                       {est.activo ? "Activo" : "Inactivo"}
                     </Badge>
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <button

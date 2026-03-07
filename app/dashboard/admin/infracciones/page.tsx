@@ -90,7 +90,7 @@ export default function AdminInfraccionesPage() {
               <TableHead className="font-semibold text-gray-700">Curso</TableHead>
               <TableHead className="font-semibold text-gray-700">Tipo de Falta</TableHead>
               <TableHead className="font-semibold text-gray-700">Gravedad</TableHead>
-              <TableHead className="font-semibold text-gray-700">Regente</TableHead>
+              {/* <TableHead className="font-semibold text-gray-700">Regente</TableHead> */}
               <TableHead className="font-semibold text-gray-700">Fecha</TableHead>
               <TableHead className="font-semibold text-gray-700">Descripción</TableHead>
             </TableRow>
@@ -119,9 +119,9 @@ export default function AdminInfraccionesPage() {
                         {gravedadCfg.label}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-gray-600 text-sm">
+                    {/* <TableCell className="text-gray-600 text-sm">
                       {inf.regente?.nombre_completo}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell className="text-gray-600 text-sm whitespace-nowrap">
                       {formatDate(inf.fecha)}
                     </TableCell>

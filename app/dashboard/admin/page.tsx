@@ -228,7 +228,6 @@ export default function AdminDashboard() {
                   <TableHead className="hidden sm:table-cell">Curso</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="hidden md:table-cell">Gravedad</TableHead>
-                  <TableHead className="hidden lg:table-cell">Regente</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha</TableHead>
                 </TableRow>
               </TableHeader>
@@ -255,9 +254,6 @@ export default function AdminDashboard() {
                             {gravedad.label}
                           </Badge>
                         )}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {inf.regente?.nombre_completo}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
                         {formatDate(inf.fecha)}

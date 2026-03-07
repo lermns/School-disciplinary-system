@@ -110,7 +110,7 @@ export default function AdminRegentesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* <div className="flex items-center justify-between">
         <div>
           <h1 className="font-serif text-2xl font-bold text-foreground">Regente</h1>
           <p className="text-muted-foreground text-sm mt-1">{regentes.length} regentes registrados</p>
@@ -119,7 +119,7 @@ export default function AdminRegentesPage() {
           <Plus className="w-4 h-4" />
           Nuevo regente
         </Button>
-      </div>
+      </div> */}
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
