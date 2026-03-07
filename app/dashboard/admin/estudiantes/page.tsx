@@ -134,7 +134,15 @@ function ListaInfraccionesDialog({
 }
 
 export default function EstudianteDashboard() {
-  const { user } = useAuth()
+  const { user, isInitialized } = useAuth()
+
+  console.log("USER:", user)
+  console.log("ESTUDIANTES:", mockEstudiantes)
+  console.log("BUSCANDO:", user?.estudiante_id)
+
+  if (!isInitialized) {
+    return <div className="p-6">Cargando...</div>
+  }
 
   const estudiante = useMemo(() => {
     if (!user?.estudiante_id) return null
