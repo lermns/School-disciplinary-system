@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import {
   Users,
   AlertTriangle,
@@ -35,38 +36,6 @@ import {
 } from "@/lib/mock-data"
 import { getGravedadConfig, formatDate } from "@/lib/helpers"
 
-const infracciones = getInfraccionesConDatos()
-
-// Stats
-const totalEstudiantes = mockEstudiantes.filter((e) => e.activo).length
-const infraccionesTotal = infracciones.length
-const infraccionesMuyGraves = infracciones.filter(
-  (i) => i.tipo_falta?.gravedad === "muy_grave"
-).length
-const infraccionesGraves = infracciones.filter(
-  (i) => i.tipo_falta?.gravedad === "grave"
-).length
-
-// Chart data: infracciones por curso
-const cursoMap: Record<string, number> = {}
-infracciones.forEach((inf) => {
-  const curso = inf.estudiante?.curso || "N/A"
-  cursoMap[curso] = (cursoMap[curso] || 0) + 1
-})
-const infraccionesPorCurso = Object.entries(cursoMap)
-  .map(([curso, count]) => ({ curso, count }))
-  .sort((a, b) => a.curso.localeCompare(b.curso))
-
-// Chart data: distribución por tipo
-const tipoMap: Record<string, number> = {}
-infracciones.forEach((inf) => {
-  const tipo = inf.tipo_falta?.nombre || "Otro"
-  tipoMap[tipo] = (tipoMap[tipo] || 0) + 1
-})
-const distribucionTipo = Object.entries(tipoMap).map(([name, value]) => ({
-  name,
-  value,
-}))
 const PIE_COLORS = [
   "oklch(0.75 0.15 85)",
   "oklch(0.25 0.06 250)",
@@ -76,38 +45,71 @@ const PIE_COLORS = [
   "oklch(0.5 0.1 300)",
 ]
 
-const stats = [
-  {
-    label: "Total Estudiantes",
-    value: totalEstudiantes,
-    icon: Users,
-    iconBg: "bg-chart-2/10",
-    iconColor: "text-chart-2",
-  },
-  {
-    label: "Infracciones registradas",
-    value: infraccionesTotal,
-    icon: AlertTriangle,
-    iconBg: "bg-warning/10",
-    iconColor: "text-warning",
-  },
-  {
-    label: "Faltas graves",
-    value: infraccionesGraves,
-    icon: ShieldAlert,
-    iconBg: "bg-warning/10",
-    iconColor: "text-warning",
-  },
-  {
-    label: "Faltas muy graves",
-    value: infraccionesMuyGraves,
-    icon: XCircle,
-    iconBg: "bg-destructive/10",
-    iconColor: "text-destructive",
-  },
-]
-
 export default function AdminDashboard() {
+  // Recalcula cada vez que el componente se monta (al navegar al dashboard)
+  // para reflejar infracciones añadidas en otras páginas
+  const infracciones = useMemo(() => getInfraccionesConDatos(), [])
+
+  const totalEstudiantes = useMemo(
+    () => mockEstudiantes.filter((e) => e.activo).length,
+    []
+  )
+
+  const infraccionesTotal = infracciones.length
+  const infraccionesMuyGraves = infracciones.filter((i) => i.tipo_falta?.gravedad === "muy_grave").length
+  const infraccionesGraves = infracciones.filter((i) => i.tipo_falta?.gravedad === "grave").length
+
+  const infraccionesPorCurso = useMemo(() => {
+    const cursoMap: Record<string, number> = {}
+    infracciones.forEach((inf) => {
+      const curso = inf.estudiante?.curso || "N/A"
+      cursoMap[curso] = (cursoMap[curso] || 0) + 1
+    })
+    return Object.entries(cursoMap)
+      .map(([curso, count]) => ({ curso, count }))
+      .sort((a, b) => a.curso.localeCompare(b.curso))
+  }, [infracciones])
+
+  const distribucionTipo = useMemo(() => {
+    const tipoMap: Record<string, number> = {}
+    infracciones.forEach((inf) => {
+      const tipo = inf.tipo_falta?.nombre || "Otro"
+      tipoMap[tipo] = (tipoMap[tipo] || 0) + 1
+    })
+    return Object.entries(tipoMap).map(([name, value]) => ({ name, value }))
+  }, [infracciones])
+
+  const stats = [
+    {
+      label: "Total Estudiantes",
+      value: totalEstudiantes,
+      icon: Users,
+      iconBg: "bg-chart-2/10",
+      iconColor: "text-chart-2",
+    },
+    {
+      label: "Infracciones registradas",
+      value: infraccionesTotal,
+      icon: AlertTriangle,
+      iconBg: "bg-warning/10",
+      iconColor: "text-warning",
+    },
+    {
+      label: "Faltas graves",
+      value: infraccionesGraves,
+      icon: ShieldAlert,
+      iconBg: "bg-warning/10",
+      iconColor: "text-warning",
+    },
+    {
+      label: "Faltas muy graves",
+      value: infraccionesMuyGraves,
+      icon: XCircle,
+      iconBg: "bg-destructive/10",
+      iconColor: "text-destructive",
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
@@ -228,6 +230,7 @@ export default function AdminDashboard() {
                   <TableHead className="hidden sm:table-cell">Curso</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="hidden md:table-cell">Gravedad</TableHead>
+                  {/* <TableHead className="hidden lg:table-cell">Regente</TableHead> */}
                   <TableHead className="hidden lg:table-cell">Fecha</TableHead>
                 </TableRow>
               </TableHeader>

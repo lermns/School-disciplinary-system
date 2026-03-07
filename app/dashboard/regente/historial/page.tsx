@@ -82,7 +82,7 @@ export default function RegenteHistorialPage() {
             />
           </div>
           <Select value={filterGravedad} onValueChange={setFilterGravedad}>
-            <SelectTrigger className="w-full sm:w-44 cursor-pointer">
+            <SelectTrigger className="w-full sm:w-44">
               <SelectValue placeholder="Gravedad" />
             </SelectTrigger>
             <SelectContent>
@@ -160,13 +160,12 @@ export default function RegenteHistorialPage() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <div className="flex items-center gap-1.5">
-                            {esAdmin && (
+                            {esAdmin ? (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
                                 Admin
                               </Badge>
-                            )}
-                            {!esAdmin && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-600 border-purple-200">
                                 Regente
                               </Badge>
                             )}
@@ -249,9 +248,13 @@ export default function RegenteHistorialPage() {
                     <p className="text-xs text-muted-foreground">Registrado por</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <p className="text-sm font-medium">{selected.regente?.nombre_completo ?? "—"}</p>
-                      {esAdmin && (
+                      {esAdmin ? (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-200">
                           Admin
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 text-purple-600 border-purple-200">
+                          Regente
                         </Badge>
                       )}
                     </div>
