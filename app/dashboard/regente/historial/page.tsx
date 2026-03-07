@@ -1,11 +1,18 @@
 "use client"
 
-import { useState } from "react"
-import { Search, CalendarDays, User, BookOpen, FileText } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Search, CalendarDays, BookOpen, FileText, ShieldCheck } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -20,72 +27,71 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useAuth } from "@/lib/auth-context"
-import {
-  mockInfracciones,
-  mockEstudiantes,
-  mockTiposFalta,
-} from "@/lib/mock-data"
+import { getInfraccionesConDatos } from "@/lib/mock-data"
 import { getGravedadConfig, formatDate } from "@/lib/helpers"
+import type { Infraccion } from "@/lib/types"
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase()
+  return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
 }
 
 export default function RegenteHistorialPage() {
-  const { user } = useAuth()
   const [search, setSearch] = useState("")
+  const [filterGravedad, setFilterGravedad] = useState("all")
+  const [selected, setSelected] = useState<Infraccion | null>(null)
 
-  const myInfracciones = mockInfracciones
-    .filter((i) => i.regente_id === user?.id)
-    .map((inf) => ({
-      ...inf,
-      estudiante: mockEstudiantes.find((e) => e.id === inf.estudiante_id),
-      tipo_falta: mockTiposFalta.find((tf) => tf.id === inf.tipo_falta_id),
-    }))
+  // Todas las infracciones del sistema (no solo las del regente)
+  const todasInfracciones = useMemo(() => getInfraccionesConDatos(), [])
 
-  type InfRow = (typeof myInfracciones)[0]
-  const [selected, setSelected] = useState<InfRow | null>(null)
+  const filtered = useMemo(() => {
+    return todasInfracciones.filter((inf) => {
+      const matchSearch =
+        search === "" ||
+        inf.estudiante?.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
+        inf.tipo_falta?.nombre.toLowerCase().includes(search.toLowerCase()) ||
+        inf.descripcion.toLowerCase().includes(search.toLowerCase())
 
-  const filtered = myInfracciones.filter((inf) => {
-    return (
-      search === "" ||
-      inf.estudiante?.nombre_completo
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      inf.tipo_falta?.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      inf.descripcion.toLowerCase().includes(search.toLowerCase())
-    )
-  })
+      const matchGravedad =
+        filterGravedad === "all" || inf.tipo_falta?.gravedad === filterGravedad
+
+      return matchSearch && matchGravedad
+    })
+  }, [todasInfracciones, search, filterGravedad])
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-bold text-foreground">
-          Mi Historial
+          Historial de Infracciones
         </h1>
         <p className="text-sm text-muted-foreground">
-          Infracciones que usted ha registrado como regente.
+          Todas las infracciones registradas en el sistema.
         </p>
       </div>
 
-      {/* Filtro */}
+      {/* Filtros */}
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por estudiante o tipo de falta..."
+              placeholder="Buscar por estudiante, tipo o descripción..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <Select value={filterGravedad} onValueChange={setFilterGravedad}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue placeholder="Gravedad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las gravedades</SelectItem>
+              <SelectItem value="leve">Leve</SelectItem>
+              <SelectItem value="grave">Grave</SelectItem>
+              <SelectItem value="muy_grave">Muy Grave</SelectItem>
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
@@ -103,7 +109,8 @@ export default function RegenteHistorialPage() {
                 <TableRow>
                   <TableHead>Estudiante</TableHead>
                   <TableHead>Tipo de Falta</TableHead>
-                  <TableHead className="hidden md:table-cell">Gravedad</TableHead>
+                  <TableHead>Gravedad</TableHead>
+                  <TableHead className="hidden md:table-cell">Registrado por</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha</TableHead>
                   <TableHead className="hidden xl:table-cell">Descripción</TableHead>
                 </TableRow>
@@ -111,10 +118,7 @@ export default function RegenteHistorialPage() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="py-8 text-center text-sm text-muted-foreground"
-                    >
+                    <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                       No se encontraron registros.
                     </TableCell>
                   </TableRow>
@@ -123,6 +127,7 @@ export default function RegenteHistorialPage() {
                     const gravedad = inf.tipo_falta
                       ? getGravedadConfig(inf.tipo_falta.gravedad)
                       : null
+                    const esAdmin = inf.regente?.rol === "admin"
 
                     return (
                       <TableRow
@@ -134,32 +139,38 @@ export default function RegenteHistorialPage() {
                           <div className="flex items-center gap-2">
                             <Avatar className="size-7">
                               <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
-                                {inf.estudiante
-                                  ? getInitials(inf.estudiante.nombre_completo)
-                                  : "?"}
+                                {inf.estudiante ? getInitials(inf.estudiante.nombre_completo) : "?"}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <span className="text-sm font-medium">
-                                {inf.estudiante?.nombre_completo}
-                              </span>
+                              <p className="text-sm font-medium">{inf.estudiante?.nombre_completo}</p>
                               <p className="text-xs text-muted-foreground">
                                 {inf.estudiante?.curso} {inf.estudiante?.seccion}
                               </p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {inf.tipo_falta?.nombre}
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
+                        <TableCell className="text-sm">{inf.tipo_falta?.nombre}</TableCell>
+                        <TableCell>
                           {gravedad && (
                             <Badge variant="outline" className={gravedad.className}>
                               {gravedad.label}
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
+                        <TableCell className="hidden md:table-cell">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm text-muted-foreground">
+                              {inf.regente?.nombre_completo ?? "—"}
+                            </span>
+                            {esAdmin && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                                Admin
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden text-sm text-muted-foreground lg:table-cell whitespace-nowrap">
                           {formatDate(inf.fecha)}
                         </TableCell>
                         <TableCell className="hidden max-w-[250px] truncate text-sm text-muted-foreground xl:table-cell">
@@ -174,7 +185,8 @@ export default function RegenteHistorialPage() {
           </div>
         </CardContent>
       </Card>
-      {/* Dialog de detalle */}
+
+      {/* Dialog detalle */}
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -185,28 +197,24 @@ export default function RegenteHistorialPage() {
             const gravedad = selected.tipo_falta
               ? getGravedadConfig(selected.tipo_falta.gravedad)
               : null
+            const esAdmin = selected.regente?.rol === "admin"
+
             return (
               <div className="space-y-4 pt-1">
-                {/* Estudiante */}
                 <div className="flex items-center gap-3 rounded-lg border p-3">
                   <Avatar className="size-10">
                     <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                      {selected.estudiante
-                        ? getInitials(selected.estudiante.nombre_completo)
-                        : "?"}
+                      {selected.estudiante ? getInitials(selected.estudiante.nombre_completo) : "?"}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold text-sm">
-                      {selected.estudiante?.nombre_completo}
-                    </p>
+                    <p className="font-semibold text-sm">{selected.estudiante?.nombre_completo}</p>
                     <p className="text-xs text-muted-foreground">
                       {selected.estudiante?.curso} — Sección {selected.estudiante?.seccion}
                     </p>
                   </div>
                 </div>
 
-                {/* Info */}
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-start gap-2">
                     <BookOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -224,7 +232,6 @@ export default function RegenteHistorialPage() {
                   </div>
                 </div>
 
-                {/* Gravedad */}
                 {gravedad && (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">Gravedad:</span>
@@ -234,7 +241,21 @@ export default function RegenteHistorialPage() {
                   </div>
                 )}
 
-                {/* Descripción completa */}
+                <div className="flex items-start gap-2">
+                  <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Registrado por</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <p className="text-sm font-medium">{selected.regente?.nombre_completo ?? "—"}</p>
+                      {esAdmin && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex items-start gap-2">
                   <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <div>

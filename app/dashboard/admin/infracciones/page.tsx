@@ -404,10 +404,14 @@ export default function AdminInfraccionesPage() {
                     </TableCell>
                     <TableCell className="text-gray-600 text-sm hidden md:table-cell">
                       <div className="flex items-center gap-1.5">
-                        <span>{registradoPor?.nombre_completo ?? "—"}</span>
                         {registradoPor?.rol === "admin" && (
                           <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
                             Admin
+                          </Badge>
+                        )}
+                        {registradoPor?.rol !== "admin" && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                            Regente
                           </Badge>
                         )}
                       </div>
