@@ -148,7 +148,7 @@ function EstudianteDetalleDialog({
                 </div>
                 <div className="rounded-lg border p-2.5 text-center">
                   <p className="text-xl font-bold text-destructive">{graves}</p>
-                  <p className="text-[10px] text-muted-foreground">Graves</p>
+                  <p className="text-[10px] text-muted-foreground">Muy Graves</p>
                 </div>
               </div>
 
@@ -231,8 +231,8 @@ export default function AdminEstudiantesPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap cursor-pointer">
+        <div className="relative flex-1 min-w-[200px] ">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
             placeholder="Buscar por nombre o curso..."
@@ -242,28 +242,28 @@ export default function AdminEstudiantesPage() {
           />
         </div>
         <Select value={filterCurso} onValueChange={setFilterCurso}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Todos los cursos" />
+          <SelectTrigger className="w-full sm:w-40 cursor-pointer">
+            <SelectValue placeholder="Todos los cursos" className="cursor-pointer hover:bg-muted/50" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos los cursos</SelectItem>
+            <SelectItem value="all">Cursos</SelectItem>
             {CURSOS.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
+              <SelectItem key={c} value={c} className="cursor-pointer hover:bg-muted/50">{c}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={filterSeccion} onValueChange={setFilterSeccion}>
-          <SelectTrigger className="w-full sm:w-36">
+          <SelectTrigger className="w-full sm:w-36 cursor-pointer">
             <SelectValue placeholder="Sección" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas las secciones</SelectItem>
+            <SelectItem value="all">Secciones</SelectItem>
             {SECCIONES.map((s) => (
               <SelectItem key={s} value={s}>Sección {s}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Select value={filterActivo} onValueChange={setFilterActivo}>
+        {/* <Select value={filterActivo} onValueChange={setFilterActivo}>
           <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
@@ -272,7 +272,7 @@ export default function AdminEstudiantesPage() {
             <SelectItem value="activos">Activos</SelectItem>
             <SelectItem value="inactivos">Inactivos</SelectItem>
           </SelectContent>
-        </Select>
+        </Select> */}
       </div>
 
       {/* Tabla */}

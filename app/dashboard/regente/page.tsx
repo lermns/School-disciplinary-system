@@ -64,7 +64,7 @@ export default function RegenteDashboard() {
         {/* Punto 4 — tarjeta clickeable */}
         <button
           onClick={() => setTiposDialogOpen(true)}
-          className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
+          className="cursor-pointer bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
         >
           <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-green-600" />

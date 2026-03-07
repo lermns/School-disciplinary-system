@@ -44,12 +44,12 @@ export default function AdminRegentePage() {
         <CardContent className="flex items-center gap-4 p-5">
           <Avatar className="size-14">
             <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-              {getInitials(regente.nombre_completo)}
+              RG
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <p className="font-bold text-foreground text-base">{regente.nombre_completo}</p>
-            <p className="text-sm text-muted-foreground">{regente.email}</p>
+            <p className="font-bold text-foreground text-base">Regente Modulo El Dorado</p>
+            <p className="text-sm text-muted-foreground">202602</p>
           </div>
           <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
             Regente

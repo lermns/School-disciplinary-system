@@ -3,7 +3,7 @@ import type { Usuario, Estudiante, TipoFalta, Infraccion } from './types';
 export const mockUsuarios: Usuario[] = [
   {
     id: 'u1',
-    email: 'admin@colegiodorado.edu',
+    email: '202600educadorado',
     nombre_completo: 'Carlos Mendoza',
     rol: 'admin',
     avatar_url: null,
@@ -11,7 +11,7 @@ export const mockUsuarios: Usuario[] = [
   },
   {
     id: 'u2',
-    email: 'regente.garcia@colegiodorado.edu',
+    email: '202600educaregente',
     nombre_completo: 'María García',
     rol: 'regente',
     avatar_url: null,
@@ -43,6 +43,15 @@ export const mockUsuarios: Usuario[] = [
     avatar_url: null,
     created_at: '2024-01-20T08:00:00Z',
     estudiante_id: 'e3',
+  },
+  {
+    id: 'ue13',
+    email: '202602',
+    nombre_completo: 'Felipe Ortega',
+    rol: 'estudiante',
+    avatar_url: null,
+    created_at: '2024-01-20T08:00:00Z',
+    estudiante_id: 'e13',
   },
 ];
 
@@ -283,6 +292,15 @@ export const mockInfracciones: Infraccion[] = [
   {
     id: 'i1',
     estudiante_id: 'e1',
+    regente_id: 'u2',
+    tipo_falta_id: 'tf1',
+    fecha: '2024-11-05',
+    descripcion: 'El estudiante llegó 20 minutos tarde a la primera hora sin justificación.',
+    created_at: '2024-11-05T07:20:00Z',
+  },
+  {
+    id: 'i34',
+    estudiante_id: 'e13',
     regente_id: 'u2',
     tipo_falta_id: 'tf1',
     fecha: '2024-11-05',

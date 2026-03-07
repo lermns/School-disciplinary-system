@@ -89,7 +89,7 @@ export default function EstudianteDashboard() {
             <p className="text-2xl font-bold text-gray-900">
               {infracciones.filter((i) => i.tipo_falta?.gravedad === "grave" || i.tipo_falta?.gravedad === "muy_grave").length}
             </p>
-            <p className="text-xs text-gray-500">Faltas graves</p>
+            <p className="text-xs text-gray-500">Faltas Muy Graves</p>
           </div>
         </div>
       </div>
