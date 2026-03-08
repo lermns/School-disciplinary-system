@@ -1,82 +1,64 @@
 "use client"
 
 import { useState } from "react"
-import type { Estudiante } from "@/lib/types"
-import { getTiposFaltaRegente, getRetrasoCount, mockInfracciones } from "@/lib/mock-data"
-import { todayISO } from "@/lib/helpers"
+import type { Estudiante, TipoFalta, Infraccion } from "@/lib/types"
+import { createInfraccion } from "@/lib/data"
+import { todayISO, formatDate } from "@/lib/helpers"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Clock, CalendarDays, CheckCircle2 } from "lucide-react"
-import { formatDate } from "@/lib/helpers"
+import { toast } from "sonner"
 
 interface Props {
     open: boolean
     onClose: () => void
+    onCreated: () => void
     estudiante: Estudiante
     regenteId: string
+    tiposDisponibles: TipoFalta[]
+    infraccionesEstudiante: Infraccion[]
 }
 
-export function RegistrarInfraccionModal({ open, onClose, estudiante, regenteId }: Props) {
+export function RegistrarInfraccionModal({ open, onClose, onCreated, estudiante, regenteId, tiposDisponibles, infraccionesEstudiante }: Props) {
     const [tipoFaltaId, setTipoFaltaId] = useState("")
     const [descripcion, setDescripcion] = useState("")
     const [success, setSuccess] = useState(false)
-    const [retrasos, setRetrasos] = useState(() => getRetrasoCount(estudiante.id))
+    const [saving, setSaving] = useState(false)
 
     const hoy = todayISO()
-    // Llamada en tiempo real para reflejar cambios en tipos-falta
-    const tiposDisponibles = getTiposFaltaRegente()
-
-    const registradosHoy = mockInfracciones
-        .filter(i => i.estudiante_id === estudiante.id && i.fecha === hoy)
-        .map(i => i.tipo_falta_id)
-
+    const retrasos = infraccionesEstudiante.filter(i => i.tipo_falta?.nombre === "Retraso").length
+    const registradosHoy = infraccionesEstudiante.filter(i => i.fecha === hoy).map(i => i.tipo_falta_id)
     const yaRegistradoHoy = tipoFaltaId ? registradosHoy.includes(tipoFaltaId) : false
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!tipoFaltaId || yaRegistradoHoy) return
-        const nueva = {
-            id: `i${Date.now()}`,
-            estudiante_id: estudiante.id,
-            regente_id: regenteId,
-            tipo_falta_id: tipoFaltaId,
-            fecha: hoy,
-            descripcion,
-            created_at: new Date().toISOString(),
-        }
-        mockInfracciones.push(nueva)
-        if (tipoFaltaId === "tf1") setRetrasos(r => r + 1)
+        setSaving(true)
+        const error = await createInfraccion({ estudiante_id: estudiante.id, registrado_por: regenteId, tipo_falta_id: tipoFaltaId, fecha: hoy, descripcion })
+        setSaving(false)
+        if (error) { toast.error("Error al registrar: " + error); return }
         setSuccess(true)
     }
 
     const cerrar = () => {
-        setTipoFaltaId("")
-        setDescripcion("")
-        setSuccess(false)
+        setTipoFaltaId(""); setDescripcion(""); setSuccess(false)
         onClose()
+        if (success) onCreated()
     }
 
     return (
         <Dialog open={open} onOpenChange={cerrar}>
             <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Registrar infracción leve</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Registrar infracción leve</DialogTitle></DialogHeader>
 
                 {success ? (
                     <div className="py-8 flex flex-col items-center text-center gap-3">
-                        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center">
-                            <CheckCircle2 className="w-10 h-10 text-green-500" />
-                        </div>
+                        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center"><CheckCircle2 className="w-10 h-10 text-green-500" /></div>
                         <p className="font-semibold text-gray-900">¡Infracción registrada!</p>
-                        <p className="text-sm text-gray-500">
-                            La falta de <strong>{estudiante.nombre_completo}</strong> ha sido guardada correctamente.
-                        </p>
-                        <Button onClick={cerrar} className="mt-2 bg-[#0f1f3d] hover:bg-[#1a3461] text-white w-full">
-                            Cerrar
-                        </Button>
+                        <p className="text-sm text-gray-500">La falta de <strong>{estudiante.nombre_completo}</strong> ha sido guardada correctamente.</p>
+                        <Button onClick={cerrar} className="mt-2 bg-[#0f1f3d] hover:bg-[#1a3461] text-white w-full">Cerrar</Button>
                     </div>
                 ) : (
                     <div className="space-y-5 py-2">
@@ -100,9 +82,7 @@ export function RegistrarInfraccionModal({ open, onClose, estudiante, regenteId 
                         <div className="space-y-1.5">
                             <Label>Tipo de falta <span className="text-red-500">*</span></Label>
                             <Select value={tipoFaltaId} onValueChange={setTipoFaltaId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona una falta..." />
-                                </SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Selecciona una falta..." /></SelectTrigger>
                                 <SelectContent>
                                     {tiposDisponibles.map(tf => {
                                         const bloqueado = registradosHoy.includes(tf.id)
@@ -115,31 +95,20 @@ export function RegistrarInfraccionModal({ open, onClose, estudiante, regenteId 
                                     })}
                                 </SelectContent>
                             </Select>
-                            {yaRegistradoHoy ? (
-                                <p className="text-xs text-destructive font-medium">Este tipo de falta ya fue registrado hoy para este estudiante.</p>
-                            ) : (
-                                <p className="text-xs text-gray-400">Solo se pueden registrar infracciones leves</p>
-                            )}
+                            {yaRegistradoHoy
+                                ? <p className="text-xs text-destructive font-medium">Este tipo de falta ya fue registrado hoy para este estudiante.</p>
+                                : <p className="text-xs text-gray-400">Solo se pueden registrar infracciones leves</p>}
                         </div>
 
                         <div className="space-y-1.5">
                             <Label>Descripción <span className="text-gray-400 font-normal text-xs">(opcional)</span></Label>
-                            <Textarea
-                                placeholder="Observaciones adicionales..."
-                                value={descripcion}
-                                onChange={e => setDescripcion(e.target.value)}
-                                rows={3}
-                            />
+                            <Textarea placeholder="Observaciones adicionales..." value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3} />
                         </div>
 
                         <div className="flex gap-3">
                             <Button variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
-                            <Button
-                                onClick={handleSubmit}
-                                disabled={!tipoFaltaId || yaRegistradoHoy}
-                                className="flex-1 bg-[#0f1f3d] hover:bg-[#1a3461] text-white"
-                            >
-                                Registrar
+                            <Button onClick={handleSubmit} disabled={!tipoFaltaId || yaRegistradoHoy || saving} className="flex-1 bg-[#0f1f3d] hover:bg-[#1a3461] text-white">
+                                {saving ? "Guardando..." : "Registrar"}
                             </Button>
                         </div>
                     </div>

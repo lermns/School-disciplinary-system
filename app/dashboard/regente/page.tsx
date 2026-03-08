@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { mockEstudiantes, getRetrasoCount, getTiposFaltaRegente } from "@/lib/mock-data"
-import type { Estudiante } from "@/lib/types"
+import { useState, useMemo, useEffect } from "react"
+import { fetchEstudiantes, fetchTiposFalta, fetchInfracciones } from "@/lib/data"
+import type { Estudiante, TipoFalta, Infraccion } from "@/lib/types"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,10 @@ const SECCIONES = ["A", "B", "C"]
 
 export default function RegenteDashboard() {
   const { user } = useAuth()
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+  const [tiposDisponibles, setTiposDisponibles] = useState<TipoFalta[]>([])
+  const [todasInfracciones, setTodasInfracciones] = useState<Infraccion[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filterCurso, setFilterCurso] = useState("all")
   const [filterSeccion, setFilterSeccion] = useState("all")
@@ -24,23 +28,28 @@ export default function RegenteDashboard() {
   const [modalOpen, setModalOpen] = useState(false)
   const [tiposDialogOpen, setTiposDialogOpen] = useState(false)
 
-  const tiposDisponibles = getTiposFaltaRegente()
-
-  const activos = useMemo(() => mockEstudiantes.filter(e => e.activo), [])
-
-  const filtered = useMemo(() => {
-    return activos.filter(e => {
-      const matchSearch = !search || e.nombre_completo.toLowerCase().includes(search.toLowerCase()) || e.curso.toLowerCase().includes(search.toLowerCase())
-      const matchCurso = filterCurso === "all" || e.curso === filterCurso
-      const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
-      return matchSearch && matchCurso && matchSeccion
-    })
-  }, [activos, search, filterCurso, filterSeccion])
-
-  const abrirModal = (est: Estudiante) => {
-    setEstudianteSeleccionado(est)
-    setModalOpen(true)
+  const cargarDatos = async () => {
+    const [ests, tipos, infs] = await Promise.all([
+      fetchEstudiantes(true),
+      fetchTiposFalta(),
+      fetchInfracciones(),
+    ])
+    setEstudiantes(ests)
+    setTiposDisponibles(tipos.filter(tf => tf.asignadoRegente && tf.gravedad === "leve"))
+    setTodasInfracciones(infs)
+    setLoading(false)
   }
+
+  useEffect(() => { cargarDatos() }, [])
+
+  const filtered = useMemo(() => estudiantes.filter(e => {
+    const matchSearch = !search || e.nombre_completo.toLowerCase().includes(search.toLowerCase()) || e.curso.toLowerCase().includes(search.toLowerCase())
+    return matchSearch && (filterCurso === "all" || e.curso === filterCurso) && (filterSeccion === "all" || e.seccion === filterSeccion)
+  }), [estudiantes, search, filterCurso, filterSeccion])
+
+  const abrirModal = (est: Estudiante) => { setEstudianteSeleccionado(est); setModalOpen(true) }
+
+  if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando...</div>
 
   return (
     <div className="space-y-6">
@@ -49,157 +58,104 @@ export default function RegenteDashboard() {
         <p className="text-sm text-muted-foreground">Bienvenido, registra infracciones leves.</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-            <Users className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{activos.length}</p>
-            <p className="text-xs text-gray-500">Estudiantes activos</p>
-          </div>
+          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center"><Users className="w-5 h-5 text-blue-600" /></div>
+          <div><p className="text-2xl font-bold text-gray-900">{estudiantes.length}</p><p className="text-xs text-gray-500">Estudiantes activos</p></div>
         </div>
 
-        {/* Punto 4 — tarjeta clickeable */}
-        {/* <button
-          onClick={() => setTiposDialogOpen(true)}
-          className="cursor-pointer bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:bg-gray-50/50 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
-        >
-          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{tiposDisponibles.length}</p>
-            <p className="text-xs text-gray-500">Tipos de falta disponibles</p>
-          </div>
-        </button> */}
-        <button
-          onClick={() => setTiposDialogOpen(true)}
-          className="group cursor-pointer bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left"
-        >
-          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900 transition-colors">
-              {tiposDisponibles.length}
-            </p>
-            <p className="text-xs text-gray-500 transition-colors">
-              Tipos de falta disponibles
-            </p>
-          </div>
+        <button onClick={() => setTiposDialogOpen(true)}
+          className="group cursor-pointer bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-[#0f1f3d]/30 hover:shadow-md transition-all text-left">
+          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center"><AlertTriangle className="w-5 h-5 text-green-600" /></div>
+          <div><p className="text-2xl font-bold text-gray-900">{tiposDisponibles.length}</p><p className="text-xs text-gray-500">Tipos de falta disponibles</p></div>
         </button>
 
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 col-span-2 md:col-span-1 flex items-center gap-3">
-          <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
-            <Clock className="w-5 h-5 text-amber-600" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Registro automático</p>
-            <p className="text-xs text-gray-500">Fecha: hoy</p>
-          </div>
+          <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center"><Clock className="w-5 h-5 text-amber-600" /></div>
+          <div><p className="text-sm font-semibold text-gray-900">Registro automático</p><p className="text-xs text-gray-500">Fecha: hoy</p></div>
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Buscar estudiante..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Buscar estudiante..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={filterCurso} onValueChange={setFilterCurso}>
           <SelectTrigger className="w-full sm:w-44 cursor-pointer"><SelectValue placeholder="Todos los cursos" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los cursos</SelectItem>
-            {CURSOS.map(c => <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>)}
+            {CURSOS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterSeccion} onValueChange={setFilterSeccion}>
           <SelectTrigger className="w-full sm:w-36 cursor-pointer"><SelectValue placeholder="Sección" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Secciones</SelectItem>
-            {SECCIONES.map(s => <SelectItem key={s} value={s} className="cursor-pointer">Sección {s}</SelectItem>)}
+            {SECCIONES.map(s => <SelectItem key={s} value={s}>Sección {s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Lista de estudiantes */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-400">No se encontraron estudiantes</div>
-        ) : (
-          filtered.map(est => {
-            const retrasos = getRetrasoCount(est.id)
-            return (
-              <div
-                key={est.id}
-                onClick={() => abrirModal(est)}
-                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 cursor-pointer hover:border-[#0f1f3d]/30 hover:shadow-md transition-all group"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="transition-colors font-semibold text-gray-900 truncate">{est.nombre_completo}</p>
-                    <p className="text-sm text-gray-500 mt-0.5">{est.curso} — Sección {est.seccion}</p>
-                  </div>
-                  <Badge variant="outline" className="shrink-0 text-xs bg-[#0f1f3d]/5 text-[#0f1f3d] border-[#0f1f3d]/20">
-                    Registrar falta
-                  </Badge>
+          <div className="col-span-full text-center py-12 text-gray-400">
+            {estudiantes.length === 0 ? "No hay estudiantes registrados aún" : "No se encontraron estudiantes"}
+          </div>
+        ) : filtered.map(est => {
+          const retrasos = todasInfracciones.filter(i => i.estudiante_id === est.id && i.tipo_falta?.nombre === "Retraso").length
+          return (
+            <div key={est.id} onClick={() => abrirModal(est)}
+              className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 cursor-pointer hover:border-[#0f1f3d]/30 hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{est.nombre_completo}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{est.curso} — Sección {est.seccion}</p>
                 </div>
-                <div className="mt-3 flex items-center gap-1.5">
-                  <Clock className={`w-3.5 h-3.5 ${retrasos > 0 ? "text-amber-500" : "text-gray-300"}`} />
-                  <span className={`text-xs font-medium ${retrasos > 0 ? "text-amber-600" : "text-gray-400"}`}>
-                    {retrasos === 0 ? "Sin retrasos" : `${retrasos} retraso${retrasos > 1 ? "s" : ""} acumulado${retrasos > 1 ? "s" : ""}`}
-                  </span>
-                </div>
+                <Badge variant="outline" className="shrink-0 text-xs bg-[#0f1f3d]/5 text-[#0f1f3d] border-[#0f1f3d]/20">Registrar falta</Badge>
               </div>
-            )
-          })
-        )}
+              <div className="mt-3 flex items-center gap-1.5">
+                <Clock className={`w-3.5 h-3.5 ${retrasos > 0 ? "text-amber-500" : "text-gray-300"}`} />
+                <span className={`text-xs font-medium ${retrasos > 0 ? "text-amber-600" : "text-gray-400"}`}>
+                  {retrasos === 0 ? "Sin retrasos" : `${retrasos} retraso${retrasos > 1 ? "s" : ""} acumulado${retrasos > 1 ? "s" : ""}`}
+                </span>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Dialog tipos de falta disponibles */}
       <Dialog open={tiposDialogOpen} onOpenChange={setTiposDialogOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-base">Faltas disponibles para registrar</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="text-base">Faltas disponibles para registrar</DialogTitle></DialogHeader>
           <div className="space-y-2 pt-1">
-            {tiposDisponibles.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No hay tipos de falta asignados al regente.</p>
-            ) : (
-              tiposDisponibles.map(tf => {
-                const gravedadCfg = getGravedadConfig(tf.gravedad)
+            {tiposDisponibles.length === 0
+              ? <p className="text-sm text-muted-foreground text-center py-4">No hay tipos de falta asignados al regente.</p>
+              : tiposDisponibles.map(tf => {
+                const g = getGravedadConfig(tf.gravedad)
                 return (
                   <div key={tf.id} className="flex items-center justify-between rounded-lg border p-3 gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tf.color }} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{tf.nombre}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{tf.descripcion}</p>
-                      </div>
+                      <div className="min-w-0"><p className="text-sm font-medium truncate">{tf.nombre}</p><p className="text-xs text-muted-foreground line-clamp-1">{tf.descripcion}</p></div>
                     </div>
-                    <Badge variant="outline" className={`text-xs shrink-0 ${gravedadCfg.className}`}>{gravedadCfg.label}</Badge>
+                    <Badge variant="outline" className={`text-xs shrink-0 ${g.className}`}>{g.label}</Badge>
                   </div>
                 )
-              })
-            )}
+              })}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Modal registrar infracción */}
       {estudianteSeleccionado && (
         <RegistrarInfraccionModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
+          onCreated={cargarDatos}
           estudiante={estudianteSeleccionado}
           regenteId={user!.id}
+          tiposDisponibles={tiposDisponibles}
+          infraccionesEstudiante={todasInfracciones.filter(i => i.estudiante_id === estudianteSeleccionado.id)}
         />
       )}
     </div>
