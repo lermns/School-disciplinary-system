@@ -30,8 +30,8 @@ export default function LoginPage() {
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "user",
-      password: "demo123",
+      email: "",
+      password: "",
     },
   })
 
