@@ -230,12 +230,12 @@ export default function AdminDashboard() {
                   <TableHead className="hidden sm:table-cell">Curso</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="hidden md:table-cell">Gravedad</TableHead>
-                  {/* <TableHead className="hidden lg:table-cell">Regente</TableHead> */}
+                  <TableHead className="hidden lg:table-cell">Registrado por</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {infracciones.slice(0, 10).map((inf) => {
+                {[...infracciones].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 10).map((inf) => {
                   const gravedad = inf.tipo_falta
                     ? getGravedadConfig(inf.tipo_falta.gravedad)
                     : null
@@ -255,6 +255,18 @@ export default function AdminDashboard() {
                         {gravedad && (
                           <Badge variant="outline" className={gravedad.className}>
                             {gravedad.label}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                        {inf.regente?.rol === "admin" && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                            Admin
+                          </Badge>
+                        )}
+                        {inf.regente?.rol !== "admin" && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-600 border-purple-200">
+                            Regente
                           </Badge>
                         )}
                       </TableCell>
