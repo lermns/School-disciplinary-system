@@ -28,8 +28,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("id", authUser.id)
       .single()
-    console.log("error:", error)
-    console.log("data:", data)
 
     if (error || !data) return null
 
@@ -77,6 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: emailOrCode,
       password,
     })
+    console.log("ERROR COMPLETO:", JSON.stringify(error, null, 2))
+    console.log("STATUS:", error?.status)
+    console.log("MESSAGE:", error?.message)
 
     if (error || !data.user) {
       setIsLoading(false)
@@ -105,8 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const supabase = createClient()
+    setUser(null)           // primero limpiar el estado local
     await supabase.auth.signOut()
-    setUser(null)
     router.push("/login")
   }, [router])
 
