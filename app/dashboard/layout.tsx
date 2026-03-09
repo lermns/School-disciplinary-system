@@ -10,16 +10,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
 
   useEffect(() => {
-    // Solo redirigir si ya terminó de leer el sessionStorage
     if (isInitialized && !user) {
       router.push("/login")
     }
   }, [user, isInitialized, router])
 
-  // Mientras inicializa, no mostrar nada (evita el flash de redirección)
-  if (!isInitialized) return null
+  // Spinner mientras restaura la sesión
+  if (!isInitialized) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="size-7 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+      </div>
+    )
+  }
 
-  // Si ya inicializó pero no hay usuario, tampoco mostrar (la redirección está en camino)
   if (!user) return null
 
   return (

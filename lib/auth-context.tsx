@@ -45,14 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await loadProfile(session.user)
-        setUser(profile)
-      }
-      setIsInitialized(true)
-    })
-
+    // onAuthStateChange es la única fuente de verdad
+    // INITIAL_SESSION dispara siempre primero (con o sin sesión)
+    // así isInitialized se setea correctamente en todos los casos
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
@@ -61,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setUser(null)
         }
+        setIsInitialized(true)
       }
     )
 
@@ -75,9 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: emailOrCode,
       password,
     })
-    console.log("ERROR COMPLETO:", JSON.stringify(error, null, 2))
-    console.log("STATUS:", error?.status)
-    console.log("MESSAGE:", error?.message)
 
     if (error || !data.user) {
       setIsLoading(false)
@@ -106,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const supabase = createClient()
-    setUser(null)           // primero limpiar el estado local
+    setUser(null)
     await supabase.auth.signOut()
     router.push("/login")
   }, [router])

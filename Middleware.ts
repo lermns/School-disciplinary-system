@@ -1,32 +1,69 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-const PUBLIC_ROUTES = ["/login"]
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-const ROLE_ROUTES: Record<string, string> = {
-  admin: "/dashboard/admin",
-  regente: "/dashboard/regente",
-  estudiante: "/dashboard/estudiante",
-}
+  const response = NextResponse.next({
+    request: { headers: request.headers },
+  });
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value);
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    },
+  );
 
-  // Allow public routes
-  if (PUBLIC_ROUTES.includes(pathname)) return NextResponse.next()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Allow dashboard routes - auth is handled client-side with sessionStorage
-  // For production, replace with Supabase JWT cookie validation
-  if (pathname.startsWith("/dashboard")) return NextResponse.next()
+  // Logueado intentando ir a /login → redirigir a su dashboard
+  if (user && pathname === '/login') {
+    const { data: perfil } = await supabase
+      .from('usuarios')
+      .select('rol')
+      .eq('id', user.id)
+      .single();
 
-  // Redirect root to login
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/login", request.url))
+    const rol = perfil?.rol ?? 'admin';
+    const destino =
+      rol === 'regente'
+        ? '/dashboard/regente'
+        : rol === 'estudiante'
+          ? '/dashboard/estudiante'
+          : '/dashboard/admin';
+
+    return NextResponse.redirect(new URL(destino, request.url));
   }
 
-  return NextResponse.next()
+  // No logueado intentando ir a /dashboard → redirigir a login
+  if (!user && pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Raíz → login
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  return response;
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
-}
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
