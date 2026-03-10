@@ -43,6 +43,7 @@ const adminNav: NavItem[] = [
 
 const regenteNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard/regente", icon: LayoutDashboard },
+  // { label: "Estudiantes", href: "/dashboard/regente/estudiantes", icon: Users },
   { label: "Mi Historial", href: "/dashboard/regente/historial", icon: History },
 ]
 
