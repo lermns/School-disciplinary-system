@@ -1,89 +1,22 @@
 "use client"
 
+import { useEffect, useState, useMemo } from "react"
+import { fetchInfracciones, fetchEstudiantes } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Bar,
-  BarChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-  Line,
-  LineChart,
-  Tooltip as RechartsTooltip,
+  Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
+  Line, LineChart, Tooltip as RechartsTooltip,
 } from "recharts"
-import {
-  mockEstudiantes,
-  mockUsuarios,
-  mockInfracciones,
-  getInfraccionesConDatos,
-} from "@/lib/mock-data"
-import { toast } from "sonner"
+import type { Infraccion, Estudiante } from "@/lib/types"
 
-const infracciones = getInfraccionesConDatos()
+const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
-// Monthly trend data (simulado)
-const monthlyTrend = [
-  { mes: "Ene", count: 5 },
-  { mes: "Feb", count: 8 },
-  { mes: "Mar", count: 6 },
-  { mes: "Abr", count: 4 },
-  { mes: "May", count: 9 },
-  { mes: "Jun", count: 3 },
-  { mes: "Jul", count: 5 },
-  { mes: "Ago", count: 2 },
-  { mes: "Sep", count: 7 },
-  { mes: "Oct", count: 4 },
-  { mes: "Nov", count: 10 },
-  { mes: "Dic", count: 6 },
-]
-
-// Infracciones por curso
-const cursoMap: Record<string, number> = {}
-infracciones.forEach((inf) => {
-  const curso = inf.estudiante?.curso || "N/A"
-  cursoMap[curso] = (cursoMap[curso] || 0) + 1
-})
-const infraccionesPorCurso = Object.entries(cursoMap)
-  .map(([curso, count]) => ({ curso, count }))
-  .sort((a, b) => a.curso.localeCompare(b.curso))
-
-// Top 10 estudiantes con más infracciones
-const studentCountMap: Record<string, number> = {}
-mockInfracciones.forEach((inf) => {
-  studentCountMap[inf.estudiante_id] =
-    (studentCountMap[inf.estudiante_id] || 0) + 1
-})
-const top10Students = Object.entries(studentCountMap)
-  .sort(([, a], [, b]) => b - a)
-  .slice(0, 10)
-  .map(([id, count], index) => ({
-    rank: index + 1,
-    student: mockEstudiantes.find((e) => e.id === id),
-    count,
-  }))
-
-// Infracciones por regente (antes profesor)
-const regenteCountMap: Record<string, number> = {}
-mockInfracciones.forEach((inf) => {
-  regenteCountMap[inf.regente_id] = (regenteCountMap[inf.regente_id] || 0) + 1
-})
-const infraccionesPorRegente = Object.entries(regenteCountMap)
-  .map(([id, count]) => ({
-    id,
-    nombre: mockUsuarios.find((u) => u.id === id)?.nombre_completo || "N/A",
-    count,
-  }))
-  .sort((a, b) => b.count - a.count)
+function getInitials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
+}
 
 const tooltipStyle = {
   backgroundColor: "oklch(1 0 0)",
@@ -93,42 +26,106 @@ const tooltipStyle = {
 }
 
 export default function ReportesPage() {
+  const [infracciones, setInfracciones] = useState<Infraccion[]>([])
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([fetchInfracciones(), fetchEstudiantes()]).then(([infs, ests]) => {
+      setInfracciones(infs)
+      setEstudiantes(ests)
+      setLoading(false)
+    })
+  }, [])
+
+  // Tendencia mensual — año actual
+  const tendenciaMensual = useMemo(() => {
+    const anioActual = new Date().getFullYear()
+    const conteo = Array(12).fill(0)
+    infracciones.forEach(inf => {
+      const fecha = new Date(inf.fecha)
+      if (fecha.getFullYear() === anioActual) {
+        conteo[fecha.getMonth()]++
+      }
+    })
+    return MESES.map((mes, i) => ({ mes, count: conteo[i] }))
+  }, [infracciones])
+
+  // Infracciones por curso
+  const infraccionesPorCurso = useMemo(() => {
+    const m: Record<string, number> = {}
+    infracciones.forEach(inf => {
+      const c = inf.estudiante?.curso ?? "N/A"
+      m[c] = (m[c] ?? 0) + 1
+    })
+    return Object.entries(m)
+      .map(([curso, count]) => ({ curso, count }))
+      .sort((a, b) => a.curso.localeCompare(b.curso))
+  }, [infracciones])
+
+  // Top 10 estudiantes con más infracciones
+  const top10 = useMemo(() => {
+    const m: Record<string, number> = {}
+    infracciones.forEach(inf => {
+      m[inf.estudiante_id] = (m[inf.estudiante_id] ?? 0) + 1
+    })
+    return Object.entries(m)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([estudianteId, count], i) => ({
+        rank: i + 1,
+        estudiante: estudiantes.find(e => e.id === estudianteId),
+        count,
+      }))
+      .filter(r => r.estudiante) // solo los que tienen datos
+  }, [infracciones, estudiantes])
+
+  // Stats rápidas
+  const totalLeves = infracciones.filter(i => i.tipo_falta?.gravedad === "leve").length
+  const totalGraves = infracciones.filter(i => i.tipo_falta?.gravedad === "grave").length
+  const totalMuyGraves = infracciones.filter(i => i.tipo_falta?.gravedad === "muy_grave").length
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando reportes...</div>
+  )
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-bold text-foreground">
-            Reportes
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Análisis y estadísticas del sistema disciplinario
-          </p>
-        </div>
-        {/* <Button
-          variant="outline"
-          onClick={() => toast.info("Función de exportación a PDF en desarrollo")}
-        >
-          <FileDown className="mr-2 size-4" />
-          Exportar PDF
-        </Button> */}
+      <div>
+        <h1 className="font-serif text-2xl font-bold text-foreground">Reportes</h1>
+        <p className="text-sm text-muted-foreground">Análisis y estadísticas del sistema disciplinario</p>
       </div>
 
-      {/* Charts */}
+      {/* Stats rápidas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Total infracciones", value: infracciones.length, color: "text-foreground" },
+          { label: "Faltas leves", value: totalLeves, color: "text-success" },
+          { label: "Faltas graves", value: totalGraves, color: "text-warning" },
+          { label: "Muy graves", value: totalMuyGraves, color: "text-destructive" },
+        ].map(s => (
+          <Card key={s.label}>
+            <CardContent className="p-5">
+              <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Tendencia mensual */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">
-              Tendencia Mensual de Infracciones
-            </CardTitle>
+            <CardTitle className="text-base font-semibold">Tendencia Mensual {new Date().getFullYear()}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrend}>
+                <LineChart data={tendenciaMensual}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                   <RechartsTooltip contentStyle={tooltipStyle} />
                   <Line
                     type="monotone"
@@ -145,44 +142,39 @@ export default function ReportesPage() {
           </CardContent>
         </Card>
 
-        {/* Por curso */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">
-              Infracciones por Curso
-            </CardTitle>
+            <CardTitle className="text-base font-semibold">Infracciones por Curso</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={infraccionesPorCurso}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="curso" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <RechartsTooltip contentStyle={tooltipStyle} />
-                  <Bar
-                    dataKey="count"
-                    name="Infracciones"
-                    fill="oklch(0.25 0.06 250)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              {infraccionesPorCurso.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Sin datos</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={infraccionesPorCurso}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="curso" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <RechartsTooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="count" name="Infracciones" fill="oklch(0.25 0.06 250)" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tables */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Top estudiantes */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">
-              Top 10 Estudiantes con Más Infracciones
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
+      {/* Top 10 estudiantes */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">Top 10 Estudiantes con Más Infracciones</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {top10.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">Sin infracciones registradas aún</div>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -193,16 +185,21 @@ export default function ReportesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {top10Students.map(({ rank, student, count }) => (
-                  <TableRow key={student?.id}>
-                    <TableCell className="font-bold text-muted-foreground">
-                      {rank}
+                {top10.map(({ rank, estudiante, count }) => (
+                  <TableRow key={estudiante!.id}>
+                    <TableCell className="font-bold text-muted-foreground">{rank}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="size-7">
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                            {getInitials(estudiante!.nombre_completo)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{estudiante!.nombre_completo}</span>
+                      </div>
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {student?.nombre_completo}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {student?.curso} {student?.seccion}
+                    <TableCell className="text-muted-foreground text-sm">
+                      {estudiante!.curso} {estudiante!.seccion}
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge variant="destructive" className="bg-destructive/10 text-destructive dark:bg-red-900/40 dark:text-red-300">
@@ -213,38 +210,9 @@ export default function ReportesPage() {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-
-        {/* Por regente */}
-        {/* <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">
-              Infracciones por Regente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Regente</TableHead>
-                  <TableHead className="text-right">Registradas</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {infraccionesPorRegente.map((reg) => (
-                  <TableRow key={reg.id}>
-                    <TableCell className="font-medium">{reg.nombre}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="secondary">{reg.count}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card> */}
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -241,23 +241,32 @@ export default function LoginPage() {
                 <span className="font-medium text-foreground">Admin:</span>{" "}
                 admin@colegiodorado.edu
               </p>
+              <p className="mt-1 text-muted-foreground/70 italic">
+                Contraseña Admin: Admin2026#
+              </p>
+              <br />
               <p>
                 <span className="font-medium text-foreground">Regente:</span>{" "}
                 regente@colegiodorado.edu
               </p>
-              {/* <p>
-                <span className="font-medium text-foreground">Estudiante 2:</span>{" "}
-                202601
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Estudiante 1:</span>{" "}
-                202602
-              </p> */}
-              <p className="mt-1 text-muted-foreground/70 italic">
-                Contraseña Admin: Admin2026#
-              </p>
               <p className="mt-1 text-muted-foreground/70 italic">
                 Contraseña Regente: Regente2026#
+              </p>
+              <br />
+              <p>
+                <span className="font-medium text-foreground">Estudiante 1:</span>{" "}
+                202601@colegiodorado.edu
+              </p>
+              <p className="mt-1 text-muted-foreground/70 italic">
+                Contraseña Estudiante 1: mUSxhECx9D
+              </p>
+              <br />
+              <p>
+                <span className="font-medium text-foreground">Estudiante 2:</span>{" "}
+                202602@colegiodorado.edu
+              </p>
+              <p className="mt-1 text-muted-foreground/70 italic">
+                Contraseña Estudiante 2: bsSXeV3RPW
               </p>
             </div>
           </div>
