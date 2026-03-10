@@ -239,22 +239,25 @@ export default function LoginPage() {
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>
                 <span className="font-medium text-foreground">Admin:</span>{" "}
-                202600educadorado
+                admin@colegiodorado.edu
               </p>
               <p>
                 <span className="font-medium text-foreground">Regente:</span>{" "}
-                202600educaregente
+                regente@colegiodorado.edu
               </p>
-              <p>
+              {/* <p>
                 <span className="font-medium text-foreground">Estudiante 2:</span>{" "}
                 202601
               </p>
               <p>
                 <span className="font-medium text-foreground">Estudiante 1:</span>{" "}
                 202602
+              </p> */}
+              <p className="mt-1 text-muted-foreground/70 italic">
+                Contraseña Admin: Admin2026#
               </p>
               <p className="mt-1 text-muted-foreground/70 italic">
-                Contraseña: cualquiera
+                Contraseña Regente: Regente2026#
               </p>
             </div>
           </div>

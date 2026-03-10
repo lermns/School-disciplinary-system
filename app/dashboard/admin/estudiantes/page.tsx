@@ -1,16 +1,18 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { fetchEstudiantes, fetchInfracciones } from "@/lib/data"
 import { getGravedadConfig, formatDate } from "@/lib/helpers"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Clock, FileText, AlertTriangle, UserCircle, BookOpen, CalendarDays } from "lucide-react"
+import { Search, Clock, FileText, AlertTriangle, UserCircle, BookOpen, CalendarDays, UserPlus } from "lucide-react"
+import { CrearEstudianteModal } from "@/components/admin/crear-estudiante-modal"
 import type { Estudiante, Infraccion } from "@/lib/types"
 
 const CURSOS = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
@@ -110,7 +112,7 @@ function EstudianteDetalleDialog({
                 </div>
                 <div className="rounded-lg border p-2.5 text-center">
                   <p className="text-xl font-bold text-destructive">{graves}</p>
-                  <p className="text-[10px] text-muted-foreground">Muy Graves</p>
+                  <p className="text-[10px] text-muted-foreground">Graves</p>
                 </div>
               </div>
               <div>
@@ -153,14 +155,16 @@ export default function AdminEstudiantesPage() {
   const [filterCurso, setFilterCurso] = useState("all")
   const [filterSeccion, setFilterSeccion] = useState("all")
   const [estudianteDetalle, setEstudianteDetalle] = useState<Estudiante | null>(null)
+  const [crearOpen, setCrearOpen] = useState(false)
 
-  useEffect(() => {
-    Promise.all([fetchEstudiantes(), fetchInfracciones()]).then(([ests, infs]) => {
-      setEstudiantes(ests)
-      setTodasInfracciones(infs)
-      setLoading(false)
-    })
+  const cargarDatos = useCallback(async () => {
+    const [ests, infs] = await Promise.all([fetchEstudiantes(), fetchInfracciones()])
+    setEstudiantes(ests)
+    setTodasInfracciones(infs)
+    setLoading(false)
   }, [])
+
+  useEffect(() => { cargarDatos() }, [cargarDatos])
 
   const filtered = useMemo(() => {
     return estudiantes.filter(e => {
@@ -177,9 +181,19 @@ export default function AdminEstudiantesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-bold text-foreground">Estudiantes</h1>
-        <p className="text-sm text-muted-foreground">{estudiantes.filter(e => e.activo).length} estudiantes activos en el sistema</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-2xl font-bold text-foreground">Estudiantes</h1>
+          <p className="text-sm text-muted-foreground">{estudiantes.filter(e => e.activo).length} estudiantes activos en el sistema</p>
+        </div>
+        <Button
+          onClick={() => setCrearOpen(true)}
+          className="gap-2 bg-[#0f1f3d] hover:bg-[#1a3461] text-white shrink-0"
+        >
+          <UserPlus className="size-4" />
+          <span className="hidden sm:inline">Nuevo estudiante</span>
+          <span className="sm:hidden">Nuevo</span>
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
@@ -188,7 +202,7 @@ export default function AdminEstudiantesPage() {
           <Input placeholder="Buscar por nombre o curso..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={filterCurso} onValueChange={setFilterCurso}>
-          <SelectTrigger className="w-full sm:w-40 cursor-pointer"><SelectValue placeholder="Todos los cursos" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40 cursor-pointer"><SelectValue placeholder="Cursos" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Cursos</SelectItem>
             {CURSOS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -268,7 +282,17 @@ export default function AdminEstudiantesPage() {
         </CardContent>
       </Card>
 
-      <EstudianteDetalleDialog estudiante={estudianteDetalle} todasInfracciones={todasInfracciones} onClose={() => setEstudianteDetalle(null)} />
+      <EstudianteDetalleDialog
+        estudiante={estudianteDetalle}
+        todasInfracciones={todasInfracciones}
+        onClose={() => setEstudianteDetalle(null)}
+      />
+
+      <CrearEstudianteModal
+        open={crearOpen}
+        onClose={() => setCrearOpen(false)}
+        onCreated={cargarDatos}
+      />
     </div>
   )
 }

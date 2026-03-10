@@ -1,9 +1,40 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase"
-import type { Usuario } from "@/lib/types"
+import { createBrowserClient } from "@supabase/ssr"
+import type { Session, AuthChangeEvent } from "@supabase/supabase-js"
+import type { Usuario, Rol } from "@/lib/types"
+
+let _client: ReturnType<typeof createBrowserClient> | null = null
+function supabase() {
+  if (!_client) {
+    _client = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+  }
+  return _client
+}
+
+async function fetchProfile(session: Session): Promise<Usuario | null> {
+  try {
+    const payload = JSON.parse(atob(session.access_token.split(".")[1]))
+    if (!payload.rol) return null
+    return {
+      id: session.user.id,
+      email: session.user.email ?? "",
+      nombre_completo: payload.nombre_completo ?? "",
+      rol: payload.rol as Rol,
+      avatar_url: null,
+      created_at: session.user.created_at,
+      estudiante_id: payload.estudiante_id ?? undefined,
+    }
+  } catch {
+    return null
+  }
+}
 
 interface AuthContextType {
   user: Usuario | null
@@ -20,67 +51,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   const router = useRouter()
-
-  async function loadProfile(authUser: { id: string; email?: string }): Promise<Usuario | null> {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("id", authUser.id)
-      .single()
-
-    if (error || !data) return null
-
-    return {
-      id: data.id,
-      email: authUser.email ?? "",
-      nombre_completo: data.nombre_completo,
-      rol: data.rol,
-      avatar_url: null,
-      created_at: data.created_at,
-      estudiante_id: data.estudiante_id ?? undefined,
-    }
-  }
+  // Evita setState en componente desmontado
+  const mounted = useRef(true)
 
   useEffect(() => {
-    const supabase = createClient()
+    mounted.current = true
 
-    // onAuthStateChange es la única fuente de verdad
-    // INITIAL_SESSION dispara siempre primero (con o sin sesión)
-    // así isInitialized se setea correctamente en todos los casos
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          const profile = await loadProfile(session.user)
-          setUser(profile)
+    const { data: { subscription } } = supabase().auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        // NO async aquí — lanzamos la promise pero sin await
+        if (session) {
+          fetchProfile(session).then(profile => {
+            if (!mounted.current) return
+            setUser(profile)
+            setIsInitialized(true)
+          })
         } else {
+          if (!mounted.current) return
           setUser(null)
+          setIsInitialized(true)
         }
-        setIsInitialized(true)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted.current = false
+      subscription.unsubscribe()
+    }
   }, [])
 
-  const login = useCallback(async (emailOrCode: string, password: string) => {
+  const login = useCallback(async (emailOrCode: string, password: string): Promise<boolean> => {
     setIsLoading(true)
-    const supabase = createClient()
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase().auth.signInWithPassword({
       email: emailOrCode,
       password,
     })
 
-    if (error || !data.user) {
+    if (error || !data.session) {
       setIsLoading(false)
       return false
     }
 
-    const profile = await loadProfile(data.user)
+    const profile = await fetchProfile(data.session)
 
     if (!profile) {
-      await supabase.auth.signOut()
+      await supabase().auth.signOut()
       setIsLoading(false)
       return false
     }
@@ -98,9 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router])
 
   const logout = useCallback(async () => {
-    const supabase = createClient()
+    await supabase().auth.signOut()
     setUser(null)
-    await supabase.auth.signOut()
     router.push("/login")
   }, [router])
 
@@ -113,6 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider")
+  if (!context) throw new Error("useAuth must be used within an AuthProvider")
   return context
 }
