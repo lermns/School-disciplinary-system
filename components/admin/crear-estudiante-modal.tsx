@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, Copy, Check, UserPlus, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
@@ -167,7 +166,9 @@ export function CrearEstudianteModal({ open, onClose, onCreated }: Props) {
                                 <Select value={form.curso} onValueChange={v => setForm(f => ({ ...f, curso: v }))}>
                                     <SelectTrigger className="cursor-pointer"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                                     <SelectContent>
-                                        {CURSOS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                        {CURSOS.map(c => <SelectItem key={c} value={c} className="cursor-pointer">
+                                            {c}
+                                        </SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -176,7 +177,7 @@ export function CrearEstudianteModal({ open, onClose, onCreated }: Props) {
                                 <Select value={form.seccion} onValueChange={v => setForm(f => ({ ...f, seccion: v }))}>
                                     <SelectTrigger className="cursor-pointer"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                                     <SelectContent>
-                                        {SECCIONES.map(s => <SelectItem key={s} value={s}>Sección {s}</SelectItem>)}
+                                        {SECCIONES.map(s => <SelectItem key={s} value={s} className="cursor-pointer">Sección {s}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -196,11 +197,11 @@ export function CrearEstudianteModal({ open, onClose, onCreated }: Props) {
                         )}
 
                         <div className="flex gap-3 pt-1">
-                            <Button variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
+                            <Button variant="outline" onClick={cerrar} className="flex-1 cursor-pointer">Cancelar</Button>
                             <Button
                                 onClick={handleSubmit}
                                 disabled={!canSubmit || saving}
-                                className="flex-1 bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2"
+                                className="flex-1 bg-[#0f1f3d] hover:bg-[#1a3461] text-white gap-2 cursor-pointer"
                             >
                                 {saving ? (
                                     <><span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />Creando...</>

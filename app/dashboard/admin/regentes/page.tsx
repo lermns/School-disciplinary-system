@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { fetchUsuarios, fetchInfracciones } from "@/lib/data"
 import { getGravedadConfig, formatDate } from "@/lib/helpers"
 import { Badge } from "@/components/ui/badge"
@@ -52,8 +52,8 @@ export default function AdminRegentePage() {
           <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">{getInitials(regente.nombre_completo)}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <p className="font-bold text-foreground text-base">{regente.nombre_completo}</p>
-          <p className="text-sm text-muted-foreground">{regente.email}</p>
+          <p className="font-bold text-gray-900 max-w-xs text-base">{regente.nombre_completo}</p>
+          <p className="text-sm text-gray-900 max-w-xs">{regente.email}</p>
         </div>
         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">Regente</Badge>
       </div>
@@ -100,7 +100,7 @@ export default function AdminRegentePage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm">{inf.tipo_falta?.nombre}</span>
+                          <span className="text-sm text-gray-900 max-w-xs">{inf.tipo_falta?.nombre}</span>
                           <Badge variant="outline" className={`text-xs ${g.className}`}>{g.label}</Badge>
                         </div>
                       </TableCell>

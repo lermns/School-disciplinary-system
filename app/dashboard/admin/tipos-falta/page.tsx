@@ -132,16 +132,16 @@ export default function AdminTiposFaltaPage() {
               <Select value={form.gravedad} onValueChange={v => setForm(f => ({ ...f, gravedad: v as Gravedad, asignadoRegente: v !== "leve" ? false : f.asignadoRegente }))}>
                 <SelectTrigger className="cursor-pointer"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="leve">Leve</SelectItem>
-                  <SelectItem value="grave">Grave</SelectItem>
-                  <SelectItem value="muy_grave">Muy Grave</SelectItem>
+                  <SelectItem value="leve" className="cursor-pointer">Leve</SelectItem>
+                  <SelectItem value="grave" className="cursor-pointer">Grave</SelectItem>
+                  <SelectItem value="muy_grave" className="cursor-pointer">Muy Grave</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {form.gravedad === "leve" && (
               <div className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
-                <Checkbox id="asignadoRegente" checked={form.asignadoRegente} onCheckedChange={v => setForm(f => ({ ...f, asignadoRegente: !!v }))} />
-                <Label htmlFor="asignadoRegente" className="text-sm text-blue-700 cursor-pointer font-normal">Permitir al regente registrar esta falta</Label>
+                <Checkbox id="asignadoRegente" checked={form.asignadoRegente} onCheckedChange={v => setForm(f => ({ ...f, asignadoRegente: !!v }))} className="cursor-pointer" />
+                <Label htmlFor="asignadoRegente" className="text-sm text-blue-700 font-normal">Permitir al regente registrar esta falta</Label>
               </div>
             )}
             <div className="space-y-1.5">

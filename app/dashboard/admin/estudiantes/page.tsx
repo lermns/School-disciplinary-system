@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Clock, FileText, AlertTriangle, UserCircle, BookOpen, CalendarDays, UserPlus } from "lucide-react"
+import { Search, Clock, FileText, AlertTriangle, UserCircle, BookOpen, CalendarDays, UserPlus, Trash2 } from "lucide-react"
 import { CrearEstudianteModal } from "@/components/admin/crear-estudiante-modal"
+import { toast } from "sonner"
 import type { Estudiante, Infraccion } from "@/lib/types"
 
 const CURSOS = ["1ro", "2do", "3ro", "4to", "5to", "6to"]
@@ -69,9 +71,16 @@ function InfraccionDialog({ selected, onClose }: { selected: Infraccion | null; 
 }
 
 function EstudianteDetalleDialog({
-  estudiante, todasInfracciones, onClose,
-}: { estudiante: Estudiante | null; todasInfracciones: Infraccion[]; onClose: () => void }) {
+  estudiante, todasInfracciones, onClose, onDeleted,
+}: {
+  estudiante: Estudiante | null
+  todasInfracciones: Infraccion[]
+  onClose: () => void
+  onDeleted: () => void
+}) {
   const [selectedInf, setSelectedInf] = useState<Infraccion | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const infracciones = useMemo(() => {
     if (!estudiante) return []
@@ -81,11 +90,49 @@ function EstudianteDetalleDialog({
   const retrasos = infracciones.filter(i => i.tipo_falta?.nombre === "Retraso").length
   const graves = infracciones.filter(i => i.tipo_falta?.gravedad === "grave" || i.tipo_falta?.gravedad === "muy_grave").length
 
+  const handleDelete = async () => {
+    if (!estudiante) return
+    setDeleting(true)
+    try {
+      const res = await fetch("/api/admin/eliminar-estudiante", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estudianteId: estudiante.id }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.ok) {
+        toast.error(json.error ?? "Error al eliminar")
+        setDeleting(false)
+        return
+      }
+      toast.success(`${estudiante.nombre_completo} eliminado correctamente`)
+      setConfirmDelete(false)
+      onClose()
+      onDeleted()
+    } catch {
+      toast.error("Error de conexión")
+      setDeleting(false)
+    }
+  }
+
   return (
     <>
       <Dialog open={!!estudiante} onOpenChange={open => !open && onClose()}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-base">Perfil del Estudiante</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="text-base">Perfil del Estudiante</DialogTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                onClick={() => setConfirmDelete(true)}
+                title="Eliminar estudiante"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          </DialogHeader>
           {estudiante && (
             <div className="space-y-4 pt-1">
               <div className="flex items-center gap-3 rounded-lg border p-3">
@@ -112,7 +159,7 @@ function EstudianteDetalleDialog({
                 </div>
                 <div className="rounded-lg border p-2.5 text-center">
                   <p className="text-xl font-bold text-destructive">{graves}</p>
-                  <p className="text-[10px] text-muted-foreground">Graves</p>
+                  <p className="text-[10px] text-muted-foreground">Muy Graves</p>
                 </div>
               </div>
               <div>
@@ -125,7 +172,7 @@ function EstudianteDetalleDialog({
                       const g = inf.tipo_falta ? getGravedadConfig(inf.tipo_falta.gravedad) : null
                       return (
                         <button key={inf.id} onClick={() => setSelectedInf(inf)}
-                          className="w-full text-left rounded-lg border p-3 hover:bg-muted/50 transition-colors">
+                          className="w-full text-left rounded-lg border p-3 hover:bg-muted/50 transition-colors cursor-pointer">
                           <div className="flex items-center justify-between gap-2">
                             <p className="font-medium text-sm">{inf.tipo_falta?.nombre ?? "—"}</p>
                             {g && <Badge variant="outline" className={`text-xs shrink-0 ${g.className}`}>{g.label}</Badge>}
@@ -142,7 +189,45 @@ function EstudianteDetalleDialog({
           )}
         </DialogContent>
       </Dialog>
+
       <InfraccionDialog selected={selectedInf} onClose={() => setSelectedInf(null)} />
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="size-5" />
+              Eliminar estudiante
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                ¿Estás seguro de que deseas eliminar a <strong>{estudiante?.nombre_completo}</strong>?
+                <br /><br />
+                Esta acción eliminará permanentemente:
+                <ul className="mt-2 space-y-1 list-disc list-inside text-sm">
+                  <li>El perfil del estudiante</li>
+                  <li>Su cuenta de acceso al sistema</li>
+                  <li>Todo su historial de infracciones</li>
+                </ul>
+                <br />
+                <span className="font-semibold text-destructive">Esta acción no se puede deshacer.</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} className="cursor-pointer">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90 text-white cursor-pointer"
+            >
+              {deleting ? "Eliminando..." : "Sí, eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
@@ -188,7 +273,7 @@ export default function AdminEstudiantesPage() {
         </div>
         <Button
           onClick={() => setCrearOpen(true)}
-          className="gap-2 bg-[#0f1f3d] hover:bg-[#1a3461] text-white shrink-0"
+          className="gap-2 bg-[#0f1f3d] hover:bg-[#1a3461] text-white shrink-0 cursor-pointer"
         >
           <UserPlus className="size-4" />
           <span className="hidden sm:inline">Nuevo estudiante</span>
@@ -205,14 +290,14 @@ export default function AdminEstudiantesPage() {
           <SelectTrigger className="w-full sm:w-40 cursor-pointer"><SelectValue placeholder="Cursos" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Cursos</SelectItem>
-            {CURSOS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {CURSOS.map(c => <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterSeccion} onValueChange={setFilterSeccion}>
           <SelectTrigger className="w-full sm:w-36 cursor-pointer"><SelectValue placeholder="Sección" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Secciones</SelectItem>
-            {SECCIONES.map(s => <SelectItem key={s} value={s}>Sección {s}</SelectItem>)}
+            {SECCIONES.map(s => <SelectItem key={s} value={s} className="cursor-pointer">Sección {s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -286,6 +371,7 @@ export default function AdminEstudiantesPage() {
         estudiante={estudianteDetalle}
         todasInfracciones={todasInfracciones}
         onClose={() => setEstudianteDetalle(null)}
+        onDeleted={cargarDatos}
       />
 
       <CrearEstudianteModal
