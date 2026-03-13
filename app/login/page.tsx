@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,6 @@ import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { useRouter } from "next/navigation"
 
 const loginSchema = z.object({
   email: z.string().min(4, "Ingresa un usuario válido"),
@@ -23,7 +22,6 @@ type LoginForm = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const { login, isLoading, user, isInitialized } = useAuth()
-  const router = useRouter()
 
   const {
     register,
@@ -55,45 +53,36 @@ export default function LoginPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-br from-[oklch(0.18_0.05_250/0.85)] via-[oklch(0.2_0.06_250/0.7)] to-[oklch(0.15_0.04_250/0.9)]" />
 
-        <div className="relative z-10 flex h-full flex-col justify-between p-10">
-          {/* Top - School name */}
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex size-12 items-center justify-center rounded-xl bg-gold/20 backdrop-blur-sm">
-                <img
-                  src="/images/logodorado.png"
-                  alt="Logo"
-                  className="size-15 object-contain"
-                />
-              </div>
-
-              <div>
-                <h1 className="font-serif text-3xl font-bold tracking-tight text-white">
-                  Modulo Educativo El Dorado
-                </h1>
-                <p className="text-base font-medium text-gold/90">
-                  Comisión Disciplinaria
-                </p>
-              </div>
-            </div>
+        <div className="relative z-10 flex h-full flex-col justify-between p-10 text-center">
+          {/* Top — Encabezado */}
+          <div className="flex flex-col items-center gap-2 pt-4">
+            <h1 className="font-serif text-3xl font-bold tracking-tight text-white">
+              Modulo Educativo El Dorado
+            </h1>
+            <p className="text-base font-medium text-gold/90">
+              Comisión Disciplinaria
+            </p>
           </div>
 
-          {/* Middle - Decorative */}
-          <div className="max-w-lg">
-            <blockquote className="space-y-3">
+          {/* Middle — Escudo + Frase */}
+          <div className="flex flex-col items-center gap-8">
+            <div className="flex size-88 items-center justify-center rounded-2xl">
+              <img
+                src="/images/logodorado.png"
+                alt="Logo"
+                className="size-144 object-contain"
+              />
+            </div>
+            <blockquote className="max-w-md">
               <p className="text-lg leading-relaxed text-white/80 italic">
-                {
-                  '"Educamos con disciplina, formamos con valores. Nuestro compromiso es construir ciudadanos íntegros para el futuro."'
-                }
+                &ldquo;Educamos con disciplina, formamos con valores. Nuestro compromiso es construir ciudadanos íntegros para el futuro.&rdquo;
               </p>
             </blockquote>
           </div>
 
-          {/* Bottom - Copyright */}
+          {/* Bottom — Copyright */}
           <p className="text-xs text-white/50">
-            {
-              "© 2026 Todos los derechos reservados. Desarrollado por Leonardo Ramos."
-            }
+            © 2026 Todos los derechos reservados. Desarrollado por Leonardo Ramos.
           </p>
         </div>
       </div>
@@ -113,11 +102,11 @@ export default function LoginPage() {
             </div>
 
             <div className="lg:hidden flex justify-center">
-              <div className="flex size-16 items-center justify-center rounded-xl bg-gold/20 backdrop-blur-sm">
+              <div className="flex size-36 items-center justify-center rounded-xl">
                 <img
                   src="/images/logodorado.png"
                   alt="Logo"
-                  className="size-22 object-contain"
+                  className="size-62 object-contain"
                 />
               </div>
             </div>
@@ -134,7 +123,7 @@ export default function LoginPage() {
             {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="text" className="text-sm font-medium text-foreground">
-                Nombre de usuario
+                Código de estudiante
               </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -239,34 +228,34 @@ export default function LoginPage() {
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>
                 <span className="font-medium text-foreground">Admin:</span>{" "}
-                admin@colegiodorado.edu
+                admin
               </p>
               <p className="mt-1 text-muted-foreground/70 italic">
-                Contraseña Admin: Admin2026#
+                Contraseña: Admin2026#
               </p>
               <br />
               <p>
                 <span className="font-medium text-foreground">Regente:</span>{" "}
-                regente@colegiodorado.edu
+                regente
               </p>
               <p className="mt-1 text-muted-foreground/70 italic">
-                Contraseña Regente: Regente2026#
+                Contraseña: Regente2026#
               </p>
               <br />
               <p>
                 <span className="font-medium text-foreground">Estudiante 1:</span>{" "}
-                202601@colegiodorado.edu
+                202601
               </p>
               <p className="mt-1 text-muted-foreground/70 italic">
-                Contraseña Estudiante 1: mUSxhECx9D
+                Contraseña: mUSxhECx9D
               </p>
               <br />
               <p>
                 <span className="font-medium text-foreground">Estudiante 2:</span>{" "}
-                202602@colegiodorado.edu
+                202602
               </p>
               <p className="mt-1 text-muted-foreground/70 italic">
-                Contraseña Estudiante 2: bsSXeV3RPW
+                Contraseña: bsSXeV3RPW
               </p>
             </div>
           </div>

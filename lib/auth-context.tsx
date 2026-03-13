@@ -83,8 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (emailOrCode: string, password: string): Promise<boolean> => {
     setIsLoading(true)
 
+    // Si no tiene @ es un código de estudiante → construir el email completo
+    const email = emailOrCode.includes("@")
+      ? emailOrCode
+      : `${emailOrCode}@colegiodorado.edu`
+
     const { data, error } = await supabase().auth.signInWithPassword({
-      email: emailOrCode,
+      email,
       password,
     })
 

@@ -23,14 +23,17 @@ export function getGravedadConfig(gravedad: Gravedad) {
   }
 }
 
+// ✅ Correcto — divide el string directamente, sin pasar por UTC
 export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day); // mes es 0-indexed
   return date.toLocaleDateString('es-CO', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
 }
+
 
 export function todayISO(): string {
   return new Date().toISOString().split('T')[0];
