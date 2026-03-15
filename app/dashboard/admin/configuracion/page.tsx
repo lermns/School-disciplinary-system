@@ -2,20 +2,18 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { fetchEstudiantes, fetchInfracciones } from "@/lib/data"
-import { getGravedadConfig, formatDate } from "@/lib/helpers"
+import { formatDate } from "@/lib/helpers"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  AlertTriangle, Download, Trash2, CheckCircle2,
-  FileText, Users, BookOpen, Loader2, Lock,
+  AlertTriangle, Download, Trash2, CheckCircle2, Loader2, Lock,
 } from "lucide-react"
 import { toast } from "sonner"
 import type { Estudiante, Infraccion } from "@/lib/types"
@@ -448,19 +446,12 @@ export default function ConfiguracionPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Nombre del Colegio</Label>
-              <Input defaultValue="Módulo Educativo El Dorado" />
+              <p className="text-sm text-muted-foreground"> Módulo Educativo El Dorado</p>
             </div>
             <div className="space-y-2">
               <Label>Ubicación</Label>
-              <Input defaultValue="Santa Cruz, Bolivia" />
+              <p className="text-sm text-muted-foreground"> Santa Cruz, Bolivia</p>
             </div>
-            <div className="space-y-2">
-              <Label>Código SIE</Label>
-              <Input defaultValue="81981573" />
-            </div>
-            <Button className="bg-gold text-gold-foreground hover:bg-gold/90">
-              Guardar Cambios
-            </Button>
           </CardContent>
         </Card>
       </div>
