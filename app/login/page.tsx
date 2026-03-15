@@ -208,20 +208,20 @@ export default function LoginPage() {
           {/* Role Badges */}
           <div className="flex items-center justify-center gap-2">
             <Badge variant="outline" className="text-xs font-medium">
-              Admin
+              Estudiante
+            </Badge>
+            <span className="text-muted-foreground">{"·"}</span>
+            <Badge variant="outline" className="text-xs font-medium">
+              Profesor
             </Badge>
             <span className="text-muted-foreground">{"·"}</span>
             <Badge variant="outline" className="text-xs font-medium">
               Regente
             </Badge>
-            <span className="text-muted-foreground">{"·"}</span>
-            <Badge variant="outline" className="text-xs font-medium">
-              Estudiante
-            </Badge>
           </div>
 
           {/* Demo Credentials */}
-          <div className="rounded-lg border border-border bg-muted/50 p-4">
+          {/* <div className="rounded-lg border border-border bg-muted/50 p-4">
             <p className="mb-2 text-xs font-semibold text-foreground">
               Cuentas de demostración:
             </p>
@@ -258,7 +258,7 @@ export default function LoginPage() {
                 Contraseña: bsSXeV3RPW
               </p>
             </div>
-          </div>
+          </div> */}
           <p className="block lg:hidden text-xs text-white/50">
             {"© 2026 Todos los derechos reservados. Desarrollado por Leonardo Ramos."}
           </p>

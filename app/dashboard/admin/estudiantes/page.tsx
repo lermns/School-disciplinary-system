@@ -12,8 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Clock, FileText, AlertTriangle, UserCircle, BookOpen, CalendarDays, UserPlus, Trash2 } from "lucide-react"
+import {
+  Search, Clock, FileText, AlertTriangle, UserCircle,
+  BookOpen, CalendarDays, UserPlus, Trash2, Upload, KeyRound, Printer,
+} from "lucide-react"
 import { CrearEstudianteModal } from "@/components/admin/crear-estudiante-modal"
+import { ImportarEstudiantesModal } from "@/components/admin/importar-estudiantes-modal"
+import { ImprimirCredencialesDialog } from "@/components/admin/imprimir-credenciales-dialog"
 import { toast } from "sonner"
 import type { Estudiante, Infraccion } from "@/lib/types"
 
@@ -24,6 +29,15 @@ function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
 }
 
+interface Credencial {
+  nombre_completo: string
+  curso: string
+  seccion: string
+  codigo: string
+  password: string
+}
+
+// ── Dialog detalle del estudiante ─────────────────────────
 function InfraccionDialog({ selected, onClose }: { selected: Infraccion | null; onClose: () => void }) {
   const gravedad = selected?.tipo_falta ? getGravedadConfig(selected.tipo_falta.gravedad) : null
   return (
@@ -71,16 +85,18 @@ function InfraccionDialog({ selected, onClose }: { selected: Infraccion | null; 
 }
 
 function EstudianteDetalleDialog({
-  estudiante, todasInfracciones, onClose, onDeleted,
+  estudiante, todasInfracciones, onClose, onDeleted, onPrintCredencial,
 }: {
   estudiante: Estudiante | null
   todasInfracciones: Infraccion[]
   onClose: () => void
   onDeleted: () => void
+  onPrintCredencial: (cred: Credencial) => void
 }) {
   const [selectedInf, setSelectedInf] = useState<Infraccion | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
 
   const infracciones = useMemo(() => {
     if (!estudiante) return []
@@ -100,19 +116,29 @@ function EstudianteDetalleDialog({
         body: JSON.stringify({ estudianteId: estudiante.id }),
       })
       const json = await res.json()
-      if (!res.ok || !json.ok) {
-        toast.error(json.error ?? "Error al eliminar")
-        setDeleting(false)
-        return
-      }
+      if (!res.ok || !json.ok) { toast.error(json.error ?? "Error al eliminar"); setDeleting(false); return }
       toast.success(`${estudiante.nombre_completo} eliminado correctamente`)
       setConfirmDelete(false)
       onClose()
       onDeleted()
-    } catch {
-      toast.error("Error de conexión")
-      setDeleting(false)
-    }
+    } catch { toast.error("Error de conexión"); setDeleting(false) }
+  }
+
+  const handleRegenerarCredenciales = async () => {
+    if (!estudiante) return
+    setRegenerating(true)
+    try {
+      const res = await fetch("/api/admin/regenerar-credenciales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estudianteId: estudiante.id }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.ok) { toast.error(json.error ?? "Error"); setRegenerating(false); return }
+      onClose()
+      onPrintCredencial({ ...estudiante, ...json.credenciales })
+    } catch { toast.error("Error de conexión") }
+    setRegenerating(false)
   }
 
   return (
@@ -123,8 +149,7 @@ function EstudianteDetalleDialog({
             <div className="flex items-center justify-between pr-6">
               <DialogTitle className="text-base">Perfil del Estudiante</DialogTitle>
               <Button
-                variant="ghost"
-                size="icon"
+                variant="ghost" size="icon"
                 className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                 onClick={() => setConfirmDelete(true)}
                 title="Eliminar estudiante"
@@ -133,6 +158,7 @@ function EstudianteDetalleDialog({
               </Button>
             </div>
           </DialogHeader>
+
           {estudiante && (
             <div className="space-y-4 pt-1">
               <div className="flex items-center gap-3 rounded-lg border p-3">
@@ -148,9 +174,25 @@ function EstudianteDetalleDialog({
                   {estudiante.activo ? "Activo" : "Inactivo"}
                 </Badge>
               </div>
+
+              {/* Botón credenciales */}
+              <Button
+                variant="outline"
+                className="w-full gap-2 text-sm cursor-pointer"
+                onClick={handleRegenerarCredenciales}
+                disabled={regenerating}
+              >
+                {regenerating
+                  ? <><span className="size-4 animate-spin rounded-full border-2 border-muted border-t-foreground" />Generando...</>
+                  : <><KeyRound className="size-4" />Imprimir credenciales</>}
+              </Button>
+              <p className="text-xs text-muted-foreground -mt-2 text-center">
+                Esto regenerará la contraseña del estudiante
+              </p>
+
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-lg border p-2.5 text-center">
-                  <p className="text-xl font-bold text-foreground">{infracciones.length}</p>
+                  <p className="text-xl font-bold">{infracciones.length}</p>
                   <p className="text-[10px] text-muted-foreground">Total</p>
                 </div>
                 <div className="rounded-lg border p-2.5 text-center">
@@ -159,9 +201,10 @@ function EstudianteDetalleDialog({
                 </div>
                 <div className="rounded-lg border p-2.5 text-center">
                   <p className="text-xl font-bold text-destructive">{graves}</p>
-                  <p className="text-[10px] text-muted-foreground">Muy Graves</p>
+                  <p className="text-[10px] text-muted-foreground">Graves</p>
                 </div>
               </div>
+
               <div>
                 <p className="text-sm font-semibold mb-2">Historial de infracciones</p>
                 {infracciones.length === 0 ? (
@@ -196,33 +239,20 @@ function EstudianteDetalleDialog({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-              <Trash2 className="size-5" />
-              Eliminar estudiante
+              <Trash2 className="size-5" />Eliminar estudiante
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div>
                 ¿Estás seguro de que deseas eliminar a <strong>{estudiante?.nombre_completo}</strong>?
                 <br /><br />
-                Esta acción eliminará permanentemente:
-                <ul className="mt-2 space-y-1 list-disc list-inside text-sm">
-                  <li>El perfil del estudiante</li>
-                  <li>Su cuenta de acceso al sistema</li>
-                  <li>Todo su historial de infracciones</li>
-                </ul>
-                <br />
-                <span className="font-semibold text-destructive">Esta acción no se puede deshacer.</span>
+                Esta acción eliminará permanentemente su perfil, cuenta de acceso e historial de infracciones.
+                <br /><span className="font-semibold text-destructive">Esta acción no se puede deshacer.</span>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting} className="cursor-pointer">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-destructive hover:bg-destructive/90 text-white cursor-pointer"
-            >
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive hover:bg-destructive/90 text-white">
               {deleting ? "Eliminando..." : "Sí, eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -232,6 +262,7 @@ function EstudianteDetalleDialog({
   )
 }
 
+// ── Página principal ──────────────────────────────────────
 export default function AdminEstudiantesPage() {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
   const [todasInfracciones, setTodasInfracciones] = useState<Infraccion[]>([])
@@ -241,6 +272,9 @@ export default function AdminEstudiantesPage() {
   const [filterSeccion, setFilterSeccion] = useState("all")
   const [estudianteDetalle, setEstudianteDetalle] = useState<Estudiante | null>(null)
   const [crearOpen, setCrearOpen] = useState(false)
+  const [importarOpen, setImportarOpen] = useState(false)
+  const [credencialesImprimir, setCredencialesImprimir] = useState<Credencial[]>([])
+  const [printOpen, setPrintOpen] = useState(false)
 
   const cargarDatos = useCallback(async () => {
     const [ests, infs] = await Promise.all([fetchEstudiantes(), fetchInfracciones()])
@@ -251,14 +285,24 @@ export default function AdminEstudiantesPage() {
 
   useEffect(() => { cargarDatos() }, [cargarDatos])
 
-  const filtered = useMemo(() => {
-    return estudiantes.filter(e => {
-      const matchSearch = !search || e.nombre_completo.toLowerCase().includes(search.toLowerCase()) || e.curso.toLowerCase().includes(search.toLowerCase())
-      const matchCurso = filterCurso === "all" || e.curso === filterCurso
-      const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
-      return matchSearch && matchCurso && matchSeccion && e.activo
-    })
-  }, [estudiantes, search, filterCurso, filterSeccion])
+  const filtered = useMemo(() => estudiantes.filter(e => {
+    const matchSearch = !search || e.nombre_completo.toLowerCase().includes(search.toLowerCase()) || e.curso.toLowerCase().includes(search.toLowerCase())
+    const matchCurso = filterCurso === "all" || e.curso === filterCurso
+    const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
+    return matchSearch && matchCurso && matchSeccion && e.activo
+  }), [estudiantes, search, filterCurso, filterSeccion])
+
+  // Abre el dialog de impresión con las credenciales de UN estudiante
+  const handlePrintCredencial = (cred: Credencial) => {
+    setCredencialesImprimir([cred])
+    setPrintOpen(true)
+  }
+
+  // Abre el dialog de impresión con el batch de estudiantes importados
+  const handlePrintBatch = (resultados: Array<{ nombre_completo: string; curso: string; seccion: string; codigo: string; password: string }>) => {
+    setCredencialesImprimir(resultados)
+    setPrintOpen(true)
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando estudiantes...</div>
@@ -266,19 +310,30 @@ export default function AdminEstudiantesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-serif text-2xl font-bold text-foreground">Estudiantes</h1>
-          <p className="text-sm text-muted-foreground">{estudiantes.filter(e => e.activo).length} estudiantes activos en el sistema</p>
+          <p className="text-sm text-muted-foreground">{estudiantes.filter(e => e.activo).length} estudiantes activos</p>
         </div>
-        <Button
-          onClick={() => setCrearOpen(true)}
-          className="gap-2 bg-[#0f1f3d] hover:bg-[#1a3461] text-white shrink-0 cursor-pointer"
-        >
-          <UserPlus className="size-4" />
-          <span className="hidden sm:inline">Nuevo estudiante</span>
-          <span className="sm:hidden">Nuevo</span>
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => setImportarOpen(true)}
+            className="gap-2 cursor-pointer"
+          >
+            <Upload className="size-4" />
+            <span className="hidden sm:inline">Importar Excel</span>
+            <span className="sm:hidden">Importar</span>
+          </Button>
+          <Button
+            onClick={() => setCrearOpen(true)}
+            className="gap-2 bg-[#0f1f3d] hover:bg-[#1a3461] text-white cursor-pointer"
+          >
+            <UserPlus className="size-4" />
+            <span className="hidden sm:inline">Nuevo estudiante</span>
+            <span className="sm:hidden">Nuevo</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
@@ -326,41 +381,43 @@ export default function AdminEstudiantesPage() {
                       {estudiantes.length === 0 ? "No hay estudiantes registrados aún" : "No se encontraron estudiantes"}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filtered.map(est => {
-                    const infs = todasInfracciones.filter(i => i.estudiante_id === est.id)
-                    const retrasos = infs.filter(i => i.tipo_falta?.nombre === "Retraso").length
-                    const graves = infs.filter(i => i.tipo_falta?.gravedad === "grave" || i.tipo_falta?.gravedad === "muy_grave").length
-                    return (
-                      <TableRow key={est.id} className="cursor-pointer hover:bg-gray-300/50 transition-colors" onClick={() => setEstudianteDetalle(est)}>
-                        <TableCell>
-                          <div className="flex items-center gap-2.5">
-                            <Avatar className="size-8 shrink-0">
-                              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{getInitials(est.nombre_completo)}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium">{est.nombre_completo}</span>
+                ) : filtered.map(est => {
+                  const infs = todasInfracciones.filter(i => i.estudiante_id === est.id)
+                  const retrasos = infs.filter(i => i.tipo_falta?.nombre === "Retraso").length
+                  const graves = infs.filter(i => i.tipo_falta?.gravedad === "grave" || i.tipo_falta?.gravedad === "muy_grave").length
+                  return (
+                    <TableRow
+                      key={est.id}
+                      className="cursor-pointer hover:bg-gray-300/50 transition-colors"
+                      onClick={() => setEstudianteDetalle(est)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2.5">
+                          <Avatar className="size-8 shrink-0">
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{getInitials(est.nombre_completo)}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{est.nombre_completo}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{est.curso}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-sm">{est.seccion}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-[180px] truncate">{est.direccion}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-center">
+                        {retrasos > 0
+                          ? <div className="flex items-center justify-center gap-1"><Clock className="size-3.5 text-amber-500" /><span className="text-sm font-medium text-amber-600">{retrasos}</span></div>
+                          : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {infs.length > 0
+                          ? <div className="flex items-center justify-center gap-1.5">
+                            <Badge variant="outline" className={graves > 0 ? "bg-destructive/10 text-destructive border-destructive/20 text-xs" : "bg-warning/10 text-warning border-warning/20 text-xs"}>{infs.length}</Badge>
+                            {graves > 0 && <AlertTriangle className="size-3.5 text-destructive" />}
                           </div>
-                        </TableCell>
-                        <TableCell className="text-sm">{est.curso}</TableCell>
-                        <TableCell className="hidden sm:table-cell text-sm">{est.seccion}</TableCell>
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground max-w-[180px] truncate">{est.direccion}</TableCell>
-                        <TableCell className="hidden lg:table-cell text-center">
-                          {retrasos > 0
-                            ? <div className="flex items-center justify-center gap-1"><Clock className="size-3.5 text-amber-500" /><span className="text-sm font-medium text-amber-600">{retrasos}</span></div>
-                            : <span className="text-xs text-muted-foreground">—</span>}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {infs.length > 0
-                            ? <div className="flex items-center justify-center gap-1.5">
-                              <Badge variant="outline" className={graves > 0 ? "bg-destructive/10 text-destructive border-destructive/20 text-xs" : "bg-warning/10 text-warning border-warning/20 text-xs"}>{infs.length}</Badge>
-                              {graves > 0 && <AlertTriangle className="size-3.5 text-destructive" />}
-                            </div>
-                            : <span className="text-xs text-muted-foreground">0</span>}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
+                          : <span className="text-xs text-muted-foreground">0</span>}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
@@ -372,12 +429,26 @@ export default function AdminEstudiantesPage() {
         todasInfracciones={todasInfracciones}
         onClose={() => setEstudianteDetalle(null)}
         onDeleted={cargarDatos}
+        onPrintCredencial={handlePrintCredencial}
       />
 
       <CrearEstudianteModal
         open={crearOpen}
         onClose={() => setCrearOpen(false)}
         onCreated={cargarDatos}
+      />
+
+      <ImportarEstudiantesModal
+        open={importarOpen}
+        onClose={() => setImportarOpen(false)}
+        onImported={cargarDatos}
+        onPrintCredenciales={handlePrintBatch}
+      />
+
+      <ImprimirCredencialesDialog
+        credenciales={credencialesImprimir}
+        open={printOpen}
+        onClose={() => { setPrintOpen(false); setCredencialesImprimir([]) }}
       />
     </div>
   )

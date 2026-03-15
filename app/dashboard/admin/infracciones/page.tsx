@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react"
-import { fetchInfracciones, fetchEstudiantes, fetchTiposFalta, createInfraccion } from "@/lib/data"
+import { fetchInfracciones, fetchEstudiantes, fetchTiposFalta, createInfraccion, deleteInfraccion } from "@/lib/data"
 import { getGravedadConfig, formatDate, todayISO } from "@/lib/helpers"
 import { useAuth } from "@/lib/auth-context"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, Filter, Plus, BookOpen, CalendarDays, FileText, CheckCircle2, ChevronDown, X } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Search, Filter, Plus, BookOpen, CalendarDays, FileText, CheckCircle2, ChevronDown, X, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import type { Infraccion, Estudiante, TipoFalta } from "@/lib/types"
 
@@ -404,6 +405,8 @@ export default function AdminInfraccionesPage() {
   const [filterTipo, setFilterTipo] = useState("all")
   const [selected, setSelected] = useState<Infraccion | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [confirmDeleteInf, setConfirmDeleteInf] = useState<Infraccion | null>(null)
+  const [deletingInf, setDeletingInf] = useState(false)
 
   const cargarDatos = useCallback(async () => {
     const [infs, ests, tipos] = await Promise.all([fetchInfracciones(), fetchEstudiantes(), fetchTiposFalta()])
@@ -515,7 +518,11 @@ export default function AdminInfraccionesPage() {
                   <TableCell className="text-gray-600 text-sm hidden md:table-cell">
                     {inf.regente?.rol === "admin"
                       ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">Admin</Badge>
-                      : <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-600 border-purple-200">Regente</Badge>}
+                      : inf.regente?.rol === "profesor"
+                        ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-indigo-50 text-indigo-700 border-indigo-200">
+                          Prof. {inf.regente.nombre_completo.split(" ")[0]}
+                        </Badge>
+                        : <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-600 border-purple-200">Regente</Badge>}
                   </TableCell>
                   <TableCell className="text-gray-600 text-sm whitespace-nowrap">{formatDate(inf.fecha)}</TableCell>
                   <TableCell className="text-gray-600 text-sm max-w-xs hidden lg:table-cell">
@@ -532,7 +539,17 @@ export default function AdminInfraccionesPage() {
       <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base">Detalle de infracción</DialogTitle>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle className="text-base">Detalle de infracción</DialogTitle>
+              <Button
+                variant="ghost" size="icon"
+                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                onClick={() => { setConfirmDeleteInf(selected); setSelected(null) }}
+                title="Eliminar infracción"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
           </DialogHeader>
           {selected && (() => {
             const g = selected.tipo_falta ? getGravedadConfig(selected.tipo_falta.gravedad) : null
@@ -576,7 +593,11 @@ export default function AdminInfraccionesPage() {
                     <span className="text-xs text-muted-foreground">Registrado por:</span>
                     {selected.regente.rol === "admin"
                       ? <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 border-blue-200">Admin</Badge>
-                      : <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 text-purple-600 border-purple-200">Regente</Badge>}
+                      : selected.regente.rol === "profesor"
+                        ? <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-indigo-50 text-indigo-700 border-indigo-200">
+                          Prof. {selected.regente.nombre_completo.split(" ")[0]}
+                        </Badge>
+                        : <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 text-purple-600 border-purple-200">Regente</Badge>}
                   </div>
                 )}
                 <div className="flex items-start gap-2">
@@ -591,6 +612,47 @@ export default function AdminInfraccionesPage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmar eliminar infracción */}
+      <AlertDialog open={!!confirmDeleteInf} onOpenChange={open => !open && setConfirmDeleteInf(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="size-5" />Eliminar infracción
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                ¿Estás seguro de que deseas eliminar la infracción de{" "}
+                <strong>{confirmDeleteInf?.estudiante?.nombre_completo}</strong>?
+                <br />
+                <span className="font-medium">{confirmDeleteInf?.tipo_falta?.nombre}</span>
+                {confirmDeleteInf?.fecha && <> — {formatDate(confirmDeleteInf.fecha)}</>}
+                <br /><br />
+                <span className="font-semibold text-destructive">Esta acción no se puede deshacer.</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingInf}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deletingInf}
+              className="bg-destructive hover:bg-destructive/90 text-white"
+              onClick={async () => {
+                if (!confirmDeleteInf) return
+                setDeletingInf(true)
+                const error = await deleteInfraccion(confirmDeleteInf.id)
+                setDeletingInf(false)
+                if (error) { toast.error("Error: " + error); return }
+                toast.success("Infracción eliminada")
+                setConfirmDeleteInf(null)
+                cargarDatos()
+              }}
+            >
+              {deletingInf ? "Eliminando..." : "Sí, eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <NuevaInfraccionModal
         open={modalOpen}

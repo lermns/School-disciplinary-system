@@ -39,15 +39,15 @@ export async function proxy(request: NextRequest) {
       .select('rol')
       .eq('id', user.id)
       .single();
-
     const rol = perfil?.rol ?? 'admin';
     const destino =
       rol === 'regente'
         ? '/dashboard/regente'
         : rol === 'estudiante'
           ? '/dashboard/estudiante'
-          : '/dashboard/admin';
-
+          : rol === 'profesor'
+            ? '/dashboard/profesor'
+            : '/dashboard/admin';
     return NextResponse.redirect(new URL(destino, request.url));
   }
 

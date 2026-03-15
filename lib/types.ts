@@ -1,4 +1,4 @@
-export type Rol = 'admin' | 'regente' | 'estudiante';
+export type Rol = 'admin' | 'regente' | 'estudiante' | 'profesor';
 export type Gravedad = 'leve' | 'grave' | 'muy_grave';
 
 export interface Usuario {
@@ -42,4 +42,15 @@ export interface Infraccion {
   estudiante?: Estudiante;
   regente?: Usuario;
   tipo_falta?: TipoFalta;
+}
+
+export interface ProfesorCurso {
+  id: string;
+  profesor_id: string;
+  curso: string;
+  seccion: string;
+}
+
+export interface Profesor extends Usuario {
+  cursos: ProfesorCurso[];
 }

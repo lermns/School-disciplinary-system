@@ -100,7 +100,7 @@ export default function EstudianteDashboard() {
                     <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                       <span>{formatDate(inf.fecha)}</span>
                       <span>·</span>
-                      <span>Registrado por {inf.regente?.rol === "regente" ? "Regente" : "Admin"}</span>
+                      <span>Registrado por {inf.regente?.rol === "profesor" ? `Prof. ${inf.regente!.nombre_completo.split(" ")[0]}` : inf.regente?.rol === "regente" ? "Regente" : "Admin"}</span>
                     </div>
                   </div>
                 </div>

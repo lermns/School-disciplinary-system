@@ -1,9 +1,15 @@
 import { createClient } from '@/lib/supabase';
-import type { Estudiante, TipoFalta, Infraccion, Usuario, Gravedad } from '@/lib/types';
+import type {
+  Estudiante,
+  TipoFalta,
+  Infraccion,
+  Usuario,
+  Gravedad,
+  ProfesorCurso,
+  Profesor,
+} from '@/lib/types';
 
 // ── Mappers DB → TypeScript ────────────────────────────────
-// La columna en DB es "registrado_por" pero en el tipo TS es "regente_id"
-// La columna en DB es "asignado_regente" pero en el tipo TS es "asignadoRegente"
 
 export function mapTipoFalta(row: any): TipoFalta {
   return {
@@ -20,7 +26,7 @@ function mapInfraccion(row: any): Infraccion {
   return {
     id: row.id,
     estudiante_id: row.estudiante_id,
-    regente_id: row.registrado_por, // mapeo DB → TS
+    regente_id: row.registrado_por,
     tipo_falta_id: row.tipo_falta_id,
     fecha: row.fecha,
     descripcion: row.descripcion ?? '',
@@ -101,6 +107,68 @@ export async function fetchUsuarios(): Promise<Usuario[]> {
   return (data ?? []) as Usuario[];
 }
 
+// ── Profesores ─────────────────────────────────────────────
+
+export async function fetchProfesores(): Promise<Profesor[]> {
+  const supabase = createClient();
+  const { data: usuarios, error: errU } = await supabase
+    .from('usuarios')
+    .select('*')
+    .eq('rol', 'profesor')
+    .order('nombre_completo');
+  if (errU) {
+    console.error('fetchProfesores:', errU);
+    return [];
+  }
+  if (!usuarios?.length) return [];
+
+  const ids = usuarios.map((u) => u.id);
+  const { data: cursos, error: errC } = await supabase
+    .from('profesor_cursos')
+    .select('*')
+    .in('profesor_id', ids);
+  if (errC) {
+    console.error('fetchProfesorCursos:', errC);
+  }
+
+  return (usuarios as Usuario[]).map((u) => ({
+    ...u,
+    cursos: ((cursos ?? []) as ProfesorCurso[]).filter((c) => c.profesor_id === u.id),
+  }));
+}
+
+export async function fetchProfesorCursos(profesorId: string): Promise<ProfesorCurso[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('profesor_cursos')
+    .select('*')
+    .eq('profesor_id', profesorId);
+  if (error) {
+    console.error('fetchProfesorCursos:', error);
+    return [];
+  }
+  return (data ?? []) as ProfesorCurso[];
+}
+
+/** Todos los estudiantes activos — profesores pueden ver cualquier estudiante */
+export async function fetchEstudiantesProfesor(_profesorId: string): Promise<Estudiante[]> {
+  return fetchEstudiantes(true);
+}
+
+export async function fetchInfraccionesProfesor(profesorId: string): Promise<Infraccion[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('infracciones')
+    .select(INF_SELECT)
+    .eq('registrado_por', profesorId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('fetchInfraccionesProfesor:', error);
+    return [];
+  }
+  return (data ?? []).map(mapInfraccion);
+}
+
 // ── Writes ─────────────────────────────────────────────────
 
 export async function createInfraccion(payload: {
@@ -146,4 +214,24 @@ export async function deleteTipoFalta(id: string): Promise<string | null> {
   const supabase = createClient();
   const { error } = await supabase.from('tipos_falta').delete().eq('id', id);
   return error?.message ?? null;
+}
+
+export async function updateInfraccion(
+  id: string,
+  payload: { tipo_falta_id: string; fecha: string; descripcion: string },
+): Promise<string | null> {
+  const supabase = createClient();
+  const { error } = await supabase.from('infracciones').update(payload).eq('id', id);
+  return error?.message ?? null;
+}
+
+export async function deleteInfraccion(id: string): Promise<string | null> {
+  // El borrado definitivo lo hace la API route (service_role bypasa RLS)
+  const res = await fetch('/api/admin/eliminar-infraccion', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ infraccionId: id }),
+  });
+  const json = await res.json();
+  return json.ok ? null : (json.error ?? 'Error desconocido');
 }

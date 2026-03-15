@@ -51,15 +51,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
   const router = useRouter()
-  // Evita setState en componente desmontado
   const mounted = useRef(true)
 
   useEffect(() => {
     mounted.current = true
-
     const { data: { subscription } } = supabase().auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
-        // NO async aquí — lanzamos la promise pero sin await
         if (session) {
           fetchProfile(session).then(profile => {
             if (!mounted.current) return
@@ -73,48 +70,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     )
-
-    return () => {
-      mounted.current = false
-      subscription.unsubscribe()
-    }
+    return () => { mounted.current = false; subscription.unsubscribe() }
   }, [])
+
+  const getDashboardPath = (rol: Rol) => {
+    switch (rol) {
+      case "admin": return "/dashboard/admin"
+      case "regente": return "/dashboard/regente"
+      case "estudiante": return "/dashboard/estudiante"
+      case "profesor": return "/dashboard/profesor"
+    }
+  }
 
   const login = useCallback(async (emailOrCode: string, password: string): Promise<boolean> => {
     setIsLoading(true)
-
-    // Si no tiene @ es un código de estudiante → construir el email completo
     const email = emailOrCode.includes("@")
       ? emailOrCode
       : `${emailOrCode}@colegiodorado.edu`
 
-    const { data, error } = await supabase().auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error || !data.session) {
-      setIsLoading(false)
-      return false
-    }
+    const { data, error } = await supabase().auth.signInWithPassword({ email, password })
+    if (error || !data.session) { setIsLoading(false); return false }
 
     const profile = await fetchProfile(data.session)
-
-    if (!profile) {
-      await supabase().auth.signOut()
-      setIsLoading(false)
-      return false
-    }
+    if (!profile) { await supabase().auth.signOut(); setIsLoading(false); return false }
 
     setUser(profile)
     setIsLoading(false)
-
-    switch (profile.rol) {
-      case "admin": router.push("/dashboard/admin"); break
-      case "regente": router.push("/dashboard/regente"); break
-      case "estudiante": router.push("/dashboard/estudiante"); break
-    }
-
+    router.push(getDashboardPath(profile.rol))
     return true
   }, [router])
 

@@ -18,6 +18,17 @@ const PIE_COLORS = [
   "oklch(0.577 0.245 27.325)", "oklch(0.6 0.118 184.704)", "oklch(0.5 0.1 300)",
 ]
 
+function getRegistradorBadge(inf: Infraccion) {
+  const rol = inf.regente?.rol
+  if (rol === "admin")
+    return <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">Admin</Badge>
+  if (rol === "profesor")
+    return <Badge variant="outline" className="text-[10px] px-1 py-0 bg-indigo-50 text-indigo-700 border-indigo-200">
+      Prof. {inf.regente!.nombre_completo.split(" ")[0]}
+    </Badge>
+  return <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-600 border-purple-200">Regente</Badge>
+}
+
 export default function AdminDashboard() {
   const [infracciones, setInfracciones] = useState<Infraccion[]>([])
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
@@ -25,9 +36,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     Promise.all([fetchInfracciones(), fetchEstudiantes()]).then(([infs, ests]) => {
-      setInfracciones(infs)
-      setEstudiantes(ests)
-      setLoading(false)
+      setInfracciones(infs); setEstudiantes(ests); setLoading(false)
     })
   }, [])
 
@@ -54,9 +63,7 @@ export default function AdminDashboard() {
     { label: "Faltas muy graves", value: infraccionesMuyGraves, icon: XCircle, iconBg: "bg-destructive/10", iconColor: "text-destructive" },
   ]
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando...</div>
-  )
+  if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando...</div>
 
   return (
     <div className="space-y-6">
@@ -143,10 +150,8 @@ export default function AdminDashboard() {
                       <TableCell className="hidden md:table-cell">
                         {g && <Badge variant="outline" className={g.className}>{g.label}</Badge>}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {inf.regente?.rol === "admin"
-                          ? <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">Admin</Badge>
-                          : <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-600 border-purple-200">Regente</Badge>}
+                      <TableCell className="hidden lg:table-cell">
+                        {getRegistradorBadge(inf)}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{formatDate(inf.fecha)}</TableCell>
                     </TableRow>
