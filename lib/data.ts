@@ -58,6 +58,42 @@ export async function fetchEstudiantes(soloActivos = false): Promise<Estudiante[
   return (data ?? []) as Estudiante[];
 }
 
+// ✨ NUEVO: Versión PAGINADA de fetchEstudiantes
+export async function fetchEstudiantesPaginados(
+  page = 1,
+  limit = 50,
+  filters?: { curso?: string; seccion?: string; search?: string },
+): Promise<{ data: Estudiante[]; total: number; hasMore: boolean }> {
+  const supabase = createClient();
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  let query = supabase
+    .from('estudiantes')
+    .select('*', { count: 'exact' })
+    .eq('activo', true)
+    .order('nombre_completo');
+
+  // Aplicar filtros
+  if (filters?.curso) query = query.eq('curso', filters.curso);
+  if (filters?.seccion) query = query.eq('seccion', filters.seccion);
+  if (filters?.search) {
+    query = query.ilike('nombre_completo', `%${filters.search}%`);
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('fetchEstudiantesPaginados:', error);
+    return { data: [], total: 0, hasMore: false };
+  }
+
+  const total = count ?? 0;
+  const hasMore = to < total - 1;
+
+  return { data: (data ?? []) as Estudiante[], total, hasMore };
+}
+
 export async function fetchTiposFalta(): Promise<TipoFalta[]> {
   const supabase = createClient();
   const { data, error } = await supabase.from('tipos_falta').select('*').order('nombre');
@@ -68,17 +104,67 @@ export async function fetchTiposFalta(): Promise<TipoFalta[]> {
   return (data ?? []).map(mapTipoFalta);
 }
 
-export async function fetchInfracciones(): Promise<Infraccion[]> {
+// ✨ OPTIMIZADO: Limitar infracciones por defecto
+export async function fetchInfracciones(limit = 200): Promise<Infraccion[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('infracciones')
     .select(INF_SELECT)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(limit);
   if (error) {
     console.error('fetchInfracciones:', error);
     return [];
   }
   return (data ?? []).map(mapInfraccion);
+}
+
+// ✨ NUEVO: Infracciones paginadas
+export async function fetchInfraccionesPaginadas(
+  page = 1,
+  limit = 50,
+  filters?: { gravedad?: string; tipo?: string; search?: string },
+): Promise<{ data: Infraccion[]; total: number; hasMore: boolean }> {
+  const supabase = createClient();
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  let query = supabase
+    .from('infracciones')
+    .select(INF_SELECT, { count: 'exact' })
+    .order('created_at', { ascending: false });
+
+  // Aplicar filtros (nota: estos requieren joins, evaluar performance)
+  if (filters?.tipo) query = query.eq('tipo_falta_id', filters.tipo);
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('fetchInfraccionesPaginadas:', error);
+    return { data: [], total: 0, hasMore: false };
+  }
+
+  const total = count ?? 0;
+  const hasMore = to < total - 1;
+
+  // Filtrado adicional en cliente si es necesario (search, gravedad)
+  let filteredData = (data ?? []).map(mapInfraccion);
+
+  if (filters?.search) {
+    const searchLower = filters.search.toLowerCase();
+    filteredData = filteredData.filter(
+      (inf) =>
+        inf.estudiante?.nombre_completo.toLowerCase().includes(searchLower) ||
+        inf.tipo_falta?.nombre.toLowerCase().includes(searchLower) ||
+        inf.descripcion.toLowerCase().includes(searchLower),
+    );
+  }
+
+  if (filters?.gravedad && filters.gravedad !== 'all') {
+    filteredData = filteredData.filter((inf) => inf.tipo_falta?.gravedad === filters.gravedad);
+  }
+
+  return { data: filteredData, total, hasMore };
 }
 
 export async function fetchInfraccionesByEstudiante(
@@ -155,13 +241,18 @@ export async function fetchEstudiantesProfesor(_profesorId: string): Promise<Est
   return fetchEstudiantes(true);
 }
 
-export async function fetchInfraccionesProfesor(profesorId: string): Promise<Infraccion[]> {
+// ✨ OPTIMIZADO: Solo infracciones del profesor con límite
+export async function fetchInfraccionesProfesor(
+  profesorId: string,
+  limit = 100,
+): Promise<Infraccion[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('infracciones')
     .select(INF_SELECT)
     .eq('registrado_por', profesorId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(limit);
   if (error) {
     console.error('fetchInfraccionesProfesor:', error);
     return [];
