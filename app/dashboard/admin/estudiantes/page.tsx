@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect, useCallback } from "react"
-import { fetchEstudiantes, fetchInfracciones } from "@/lib/data"
+import { useState, useMemo, useCallback } from "react"
+import { useInfiniteQuery } from "@tanstack/react-query"
+import { fetchEstudiantesPaginados, fetchInfracciones } from "@/lib/data"
 import { getGravedadConfig, formatDate } from "@/lib/helpers"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Search, Clock, FileText, AlertTriangle, UserCircle,
-  BookOpen, CalendarDays, UserPlus, Trash2, Upload, KeyRound, Printer,
+  BookOpen, CalendarDays, UserPlus, Trash2, Upload, KeyRound, Printer, Loader2,
 } from "lucide-react"
 import { CrearEstudianteModal } from "@/components/admin/crear-estudiante-modal"
 import { ImportarEstudiantesModal } from "@/components/admin/importar-estudiantes-modal"
@@ -175,7 +176,6 @@ function EstudianteDetalleDialog({
                 </Badge>
               </div>
 
-              {/* Botón credenciales */}
               <Button
                 variant="outline"
                 className="w-full gap-2 text-sm cursor-pointer"
@@ -186,9 +186,6 @@ function EstudianteDetalleDialog({
                   ? <><span className="size-4 animate-spin rounded-full border-2 border-muted border-t-foreground" />Generando...</>
                   : <><KeyRound className="size-4" />Imprimir credenciales</>}
               </Button>
-              <p className="text-xs text-muted-foreground -mt-2 text-center">
-                Esto regenerará la contraseña del estudiante
-              </p>
 
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-lg border p-2.5 text-center">
@@ -261,51 +258,80 @@ function EstudianteDetalleDialog({
     </>
   )
 }
+import { useDebounce } from "@/lib/use-debounce" // ← AGREGAR
 
-// ── Página principal ──────────────────────────────────────
+// ── Página principal con INFINITE SCROLL ──────────────────
 export default function AdminEstudiantesPage() {
-  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
-  const [todasInfracciones, setTodasInfracciones] = useState<Infraccion[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [filterCurso, setFilterCurso] = useState("all")
   const [filterSeccion, setFilterSeccion] = useState("all")
+  const debouncedSearch = useDebounce(search, 400) // 400ms de espera
   const [estudianteDetalle, setEstudianteDetalle] = useState<Estudiante | null>(null)
   const [crearOpen, setCrearOpen] = useState(false)
   const [importarOpen, setImportarOpen] = useState(false)
   const [credencialesImprimir, setCredencialesImprimir] = useState<Credencial[]>([])
   const [printOpen, setPrintOpen] = useState(false)
+  const [todasInfracciones, setTodasInfracciones] = useState<Infraccion[]>([])
 
-  const cargarDatos = useCallback(async () => {
-    const [ests, infs] = await Promise.all([fetchEstudiantes(), fetchInfracciones()])
-    setEstudiantes(ests)
+  // ✨ React Query con Infinite Scroll
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ['estudiantes', filterCurso, filterSeccion, debouncedSearch],
+    queryFn: ({ pageParam = 1 }) =>
+      fetchEstudiantesPaginados(pageParam, 50, {
+        curso: filterCurso !== 'all' ? filterCurso : undefined,
+        seccion: filterSeccion !== 'all' ? filterSeccion : undefined,
+        search: debouncedSearch || undefined,
+      }),
+    getNextPageParam: (lastPage, pages) => {
+      return lastPage.hasMore ? pages.length + 1 : undefined
+    },
+    initialPageParam: 1,
+  })
+
+  // Cargar infracciones solo una vez (limitadas a las últimas 500)
+  const cargarInfracciones = useCallback(async () => {
+    const infs = await fetchInfracciones(500)
     setTodasInfracciones(infs)
-    setLoading(false)
   }, [])
 
-  useEffect(() => { cargarDatos() }, [cargarDatos])
+  useMemo(() => {
+    cargarInfracciones()
+  }, [cargarInfracciones])
 
-  const filtered = useMemo(() => estudiantes.filter(e => {
-    const matchSearch = !search || e.nombre_completo.toLowerCase().includes(search.toLowerCase()) || e.curso.toLowerCase().includes(search.toLowerCase())
-    const matchCurso = filterCurso === "all" || e.curso === filterCurso
-    const matchSeccion = filterSeccion === "all" || e.seccion === filterSeccion
-    return matchSearch && matchCurso && matchSeccion && e.activo
-  }), [estudiantes, search, filterCurso, filterSeccion])
+  // Aplanar todas las páginas de estudiantes
+  const estudiantes = useMemo(() => {
+    return data?.pages.flatMap(page => page.data) ?? []
+  }, [data])
 
-  // Abre el dialog de impresión con las credenciales de UN estudiante
+  const totalCount = data?.pages[0]?.total ?? 0
+
   const handlePrintCredencial = (cred: Credencial) => {
     setCredencialesImprimir([cred])
     setPrintOpen(true)
   }
 
-  // Abre el dialog de impresión con el batch de estudiantes importados
   const handlePrintBatch = (resultados: Array<{ nombre_completo: string; curso: string; seccion: string; codigo: string; password: string }>) => {
     setCredencialesImprimir(resultados)
     setPrintOpen(true)
   }
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando estudiantes...</div>
+  const handleCreatedOrImported = () => {
+    refetch()
+    cargarInfracciones()
+  }
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+      <Loader2 className="size-5 animate-spin mr-2" />
+      Cargando estudiantes...
+    </div>
   )
 
   return (
@@ -313,7 +339,7 @@ export default function AdminEstudiantesPage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-serif text-2xl font-bold text-foreground">Estudiantes</h1>
-          <p className="text-sm text-muted-foreground">{estudiantes.filter(e => e.activo).length} estudiantes activos</p>
+          <p className="text-sm text-muted-foreground">{totalCount} estudiantes activos</p>
         </div>
         <div className="flex gap-2 shrink-0">
           <Button
@@ -339,19 +365,30 @@ export default function AdminEstudiantesPage() {
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input placeholder="Buscar por nombre o curso..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input
+            placeholder="Buscar por nombre..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9"
+          />
+          {/* Indicador de búsqueda activa */}
+          {search !== debouncedSearch && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="size-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+            </div>
+          )}
         </div>
         <Select value={filterCurso} onValueChange={setFilterCurso}>
           <SelectTrigger className="w-full sm:w-40 cursor-pointer"><SelectValue placeholder="Cursos" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Cursos</SelectItem>
+            <SelectItem value="all">Todos los cursos</SelectItem>
             {CURSOS.map(c => <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterSeccion} onValueChange={setFilterSeccion}>
           <SelectTrigger className="w-full sm:w-36 cursor-pointer"><SelectValue placeholder="Sección" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Secciones</SelectItem>
+            <SelectItem value="all">Todas las secciones</SelectItem>
             {SECCIONES.map(s => <SelectItem key={s} value={s} className="cursor-pointer">Sección {s}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -359,7 +396,9 @@ export default function AdminEstudiantesPage() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold">{filtered.length} estudiante{filtered.length !== 1 ? "s" : ""}</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            {estudiantes.length} estudiante{estudiantes.length !== 1 ? "s" : ""} cargados
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -375,13 +414,13 @@ export default function AdminEstudiantesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {estudiantes.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-sm">
-                      {estudiantes.length === 0 ? "No hay estudiantes registrados aún" : "No se encontraron estudiantes"}
+                      No se encontraron estudiantes
                     </TableCell>
                   </TableRow>
-                ) : filtered.map(est => {
+                ) : estudiantes.map(est => {
                   const infs = todasInfracciones.filter(i => i.estudiante_id === est.id)
                   const retrasos = infs.filter(i => i.tipo_falta?.nombre === "Retraso").length
                   const graves = infs.filter(i => i.tipo_falta?.gravedad === "grave" || i.tipo_falta?.gravedad === "muy_grave").length
@@ -421,6 +460,27 @@ export default function AdminEstudiantesPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* ✨ Botón cargar más */}
+          {hasNextPage && (
+            <div className="p-4 border-t flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="cursor-pointer"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                    Cargando...
+                  </>
+                ) : (
+                  `Cargar más (${estudiantes.length} de ${totalCount})`
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -428,20 +488,20 @@ export default function AdminEstudiantesPage() {
         estudiante={estudianteDetalle}
         todasInfracciones={todasInfracciones}
         onClose={() => setEstudianteDetalle(null)}
-        onDeleted={cargarDatos}
+        onDeleted={handleCreatedOrImported}
         onPrintCredencial={handlePrintCredencial}
       />
 
       <CrearEstudianteModal
         open={crearOpen}
         onClose={() => setCrearOpen(false)}
-        onCreated={cargarDatos}
+        onCreated={handleCreatedOrImported}
       />
 
       <ImportarEstudiantesModal
         open={importarOpen}
         onClose={() => setImportarOpen(false)}
-        onImported={cargarDatos}
+        onImported={handleCreatedOrImported}
         onPrintCredenciales={handlePrintBatch}
       />
 

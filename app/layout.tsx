@@ -3,8 +3,10 @@ import { Inter, Playfair_Display } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
+import { ReactQueryProvider } from "@/lib/react-query"
 import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -65,10 +67,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            {children}
-            <Toaster richColors position="top-right" />
-          </AuthProvider>
+          <ReactQueryProvider>  {/* ← NUEVO */}
+            <AuthProvider>
+              {children}
+              <Toaster richColors position="top-right" />
+            </AuthProvider>
+          </ReactQueryProvider>  {/* ← NUEVO */}
         </ThemeProvider>
         <Analytics />
       </body>
