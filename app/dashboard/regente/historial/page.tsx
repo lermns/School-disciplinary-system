@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { fetchInfracciones } from "@/lib/data"
-import { Search, CalendarDays, BookOpen, FileText, ShieldCheck } from "lucide-react"
+import { useDebounce } from "@/lib/use-debounce"
+import { Search, CalendarDays, BookOpen, FileText, ShieldCheck, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -36,29 +37,78 @@ export default function RegenteHistorialPage() {
   const [filterGravedad, setFilterGravedad] = useState("all")
   const [selected, setSelected] = useState<Infraccion | null>(null)
 
+  // ✨ NUEVO: Debounce del search
+  const debouncedSearch = useDebounce(search, 400)
+
+  // ✨ NUEVO: Detectar si hay filtros activos
+  const hasActiveFilters = useMemo(() => {
+    return debouncedSearch.trim() !== "" || filterGravedad !== "all"
+  }, [debouncedSearch, filterGravedad])
+
+  const cargarDatos = useCallback(async () => {
+    setLoading(true)
+
+    // ✨ ESTRATEGIA INTELIGENTE:
+    // - Sin filtros → Solo últimas 50 infracciones (carga rápida)
+    // - Con filtros → Cargar más para poder filtrar mejor (500 máx)
+    const limit = hasActiveFilters ? 500 : 50
+
+    const data = await fetchInfracciones(limit)
+    setInfracciones(data)
+    setLoading(false)
+  }, [hasActiveFilters])
+
+  // ✨ NUEVO: Recargar cuando cambian los filtros
   useEffect(() => {
-    fetchInfracciones().then(data => { setInfracciones(data); setLoading(false) })
-  }, [])
+    cargarDatos()
+  }, [cargarDatos])
 
+  // ✨ OPTIMIZADO: Usar debouncedSearch
   const filtered = useMemo(() => infracciones.filter(inf => {
-    const matchSearch = search === "" || inf.estudiante?.nombre_completo.toLowerCase().includes(search.toLowerCase()) || inf.tipo_falta?.nombre.toLowerCase().includes(search.toLowerCase()) || inf.descripcion.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = debouncedSearch === "" ||
+      inf.estudiante?.nombre_completo.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      inf.tipo_falta?.nombre.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      inf.descripcion.toLowerCase().includes(debouncedSearch.toLowerCase())
     return matchSearch && (filterGravedad === "all" || inf.tipo_falta?.gravedad === filterGravedad)
-  }), [infracciones, search, filterGravedad])
+  }), [infracciones, debouncedSearch, filterGravedad])
 
-  if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando historial...</div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-muted-foreground text-sm gap-2">
+      <Loader2 className="w-5 h-5 animate-spin" />
+      Cargando historial...
+    </div>
+  )
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-bold text-foreground">Historial de Infracciones</h1>
-        <p className="text-sm text-muted-foreground">Todas las infracciones registradas en el sistema.</p>
+        {/* ✨ NUEVO: Indicador inteligente */}
+        <p className="text-sm text-muted-foreground">
+          {hasActiveFilters
+            ? `${filtered.length} de ${infracciones.length} infracciones encontradas`
+            : `${infracciones.length} infracciones más recientes`
+          }
+        </p>
       </div>
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+          {/* ✨ Input con spinner de debounce */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar por estudiante, tipo o descripción..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            <Input
+              placeholder="Buscar por estudiante, tipo o descripción..."
+              className="pl-9"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {/* ✨ Spinner mientras debounce */}
+            {search !== debouncedSearch && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="size-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+              </div>
+            )}
           </div>
           <Select value={filterGravedad} onValueChange={setFilterGravedad}>
             <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Gravedad" /></SelectTrigger>
@@ -73,7 +123,11 @@ export default function RegenteHistorialPage() {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base font-semibold">{filtered.length} registro{filtered.length !== 1 ? "s" : ""}</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">
+            {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -89,15 +143,28 @@ export default function RegenteHistorialPage() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">{infracciones.length === 0 ? "No hay infracciones registradas aún." : "No se encontraron registros."}</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                      {infracciones.length === 0
+                        ? "No hay infracciones registradas aún."
+                        : "No se encontraron registros con los filtros seleccionados."}
+                    </TableCell>
+                  </TableRow>
                 ) : filtered.map(inf => {
                   const g = inf.tipo_falta ? getGravedadConfig(inf.tipo_falta.gravedad) : null
                   return (
                     <TableRow key={inf.id} className="cursor-pointer hover:bg-muted/60" onClick={() => setSelected(inf)}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">{inf.estudiante ? getInitials(inf.estudiante.nombre_completo) : "?"}</AvatarFallback></Avatar>
-                          <div><p className="text-sm font-medium">{inf.estudiante?.nombre_completo}</p><p className="text-xs text-muted-foreground">{inf.estudiante?.curso} {inf.estudiante?.seccion}</p></div>
+                          <Avatar className="size-7">
+                            <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                              {inf.estudiante ? getInitials(inf.estudiante.nombre_completo) : "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{inf.estudiante?.nombre_completo}</p>
+                            <p className="text-xs text-muted-foreground">{inf.estudiante?.curso} {inf.estudiante?.seccion}</p>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">{inf.tipo_falta?.nombre}</TableCell>
@@ -114,6 +181,7 @@ export default function RegenteHistorialPage() {
         </CardContent>
       </Card>
 
+      {/* Dialog detalle (SIN CAMBIOS) */}
       <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="text-base">Detalle de infracción</DialogTitle></DialogHeader>
@@ -122,14 +190,38 @@ export default function RegenteHistorialPage() {
             return (
               <div className="space-y-4 pt-1">
                 <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <Avatar className="size-10"><AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{selected.estudiante ? getInitials(selected.estudiante.nombre_completo) : "?"}</AvatarFallback></Avatar>
-                  <div><p className="font-semibold text-sm">{selected.estudiante?.nombre_completo}</p><p className="text-xs text-muted-foreground">{selected.estudiante?.curso} — Sección {selected.estudiante?.seccion}</p></div>
+                  <Avatar className="size-10">
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                      {selected.estudiante ? getInitials(selected.estudiante.nombre_completo) : "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-sm">{selected.estudiante?.nombre_completo}</p>
+                    <p className="text-xs text-muted-foreground">{selected.estudiante?.curso} — Sección {selected.estudiante?.seccion}</p>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-start gap-2"><BookOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div><p className="text-xs text-muted-foreground">Tipo de falta</p><p className="font-medium">{selected.tipo_falta?.nombre ?? "—"}</p></div></div>
-                  <div className="flex items-start gap-2"><CalendarDays className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div><p className="text-xs text-muted-foreground">Fecha</p><p className="font-medium">{formatDate(selected.fecha)}</p></div></div>
+                  <div className="flex items-start gap-2">
+                    <BookOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tipo de falta</p>
+                      <p className="font-medium">{selected.tipo_falta?.nombre ?? "—"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CalendarDays className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Fecha</p>
+                      <p className="font-medium">{formatDate(selected.fecha)}</p>
+                    </div>
+                  </div>
                 </div>
-                {g && <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Gravedad:</span><Badge variant="outline" className={g.className}>{g.label}</Badge></div>}
+                {g && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Gravedad:</span>
+                    <Badge variant="outline" className={g.className}>{g.label}</Badge>
+                  </div>
+                )}
                 <div className="flex items-start gap-2">
                   <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                   <div>
@@ -140,7 +232,13 @@ export default function RegenteHistorialPage() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-2"><FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div><p className="text-xs text-muted-foreground mb-1">Descripción</p><p className="text-sm leading-relaxed">{selected.descripcion || "Sin descripción."}</p></div></div>
+                <div className="flex items-start gap-2">
+                  <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Descripción</p>
+                    <p className="text-sm leading-relaxed">{selected.descripcion || "Sin descripción."}</p>
+                  </div>
+                </div>
               </div>
             )
           })()}

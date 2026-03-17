@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { fetchInfracciones, fetchEstudiantes, fetchTiposFalta, createInfraccion, deleteInfraccion } from "@/lib/data"
 import { getGravedadConfig, formatDate, todayISO } from "@/lib/helpers"
 import { useAuth } from "@/lib/auth-context"
+import { useDebounce } from "@/lib/use-debounce"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -43,7 +44,7 @@ function matchesSearch(nombre: string, query: string): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Modal "Nueva Infracción" rediseñado
+// Modal "Nueva Infracción" (SIN CAMBIOS)
 // ─────────────────────────────────────────────────────────────
 function NuevaInfraccionModal({
   open, onClose, onCreated, adminId, estudiantes, tiposFalta, todasInfracciones,
@@ -392,7 +393,7 @@ function NuevaInfraccionModal({
 }
 
 // ─────────────────────────────────────────────────────────────
-// Página principal de Infracciones (sin cambios en la tabla)
+// ✨ Página principal - CON OPTIMIZACIÓN INTELIGENTE
 // ─────────────────────────────────────────────────────────────
 export default function AdminInfraccionesPage() {
   const { user } = useAuth()
@@ -400,30 +401,63 @@ export default function AdminInfraccionesPage() {
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
   const [tiposFalta, setTiposFalta] = useState<TipoFalta[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Estados de filtros
   const [search, setSearch] = useState("")
   const [filterGravedad, setFilterGravedad] = useState("all")
   const [filterTipo, setFilterTipo] = useState("all")
+
+  // Estados de UI
   const [selected, setSelected] = useState<Infraccion | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [confirmDeleteInf, setConfirmDeleteInf] = useState<Infraccion | null>(null)
   const [deletingInf, setDeletingInf] = useState(false)
 
+  // ✨ OPTIMIZACIÓN: Debounce del search
+  const debouncedSearch = useDebounce(search, 400)
+
+  // ✨ OPTIMIZACIÓN: Detectar si hay filtros activos
+  const hasActiveFilters = useMemo(() => {
+    return debouncedSearch.trim() !== ""
+      || filterGravedad !== "all"
+      || filterTipo !== "all"
+  }, [debouncedSearch, filterGravedad, filterTipo])
+
   const cargarDatos = useCallback(async () => {
-    const [infs, ests, tipos] = await Promise.all([fetchInfracciones(), fetchEstudiantes(), fetchTiposFalta()])
-    setInfracciones(infs); setEstudiantes(ests); setTiposFalta(tipos); setLoading(false)
-  }, [])
+    setLoading(true)
 
-  useEffect(() => { cargarDatos() }, [cargarDatos])
+    // ✨ ESTRATEGIA INTELIGENTE:
+    // - Sin filtros → Solo últimas 50 infracciones (carga rápida)
+    // - Con filtros → Cargar más para poder filtrar mejor (500 máx)
+    const limit = hasActiveFilters ? 500 : 50
 
+    const [infs, ests, tipos] = await Promise.all([
+      fetchInfracciones(limit),
+      fetchEstudiantes(),
+      fetchTiposFalta(),
+    ])
+
+    setInfracciones(infs)
+    setEstudiantes(ests)
+    setTiposFalta(tipos)
+    setLoading(false)
+  }, [hasActiveFilters])
+
+  // ✨ OPTIMIZACIÓN: Recargar solo cuando cambian los filtros
+  useEffect(() => {
+    cargarDatos()
+  }, [cargarDatos])
+
+  // Filtrado en cliente (igual que antes)
   const filtered = useMemo(() => infracciones.filter(inf => {
-    const matchSearch = !search
-      || inf.estudiante?.nombre_completo.toLowerCase().includes(search.toLowerCase())
-      || inf.tipo_falta?.nombre.toLowerCase().includes(search.toLowerCase())
-      || inf.descripcion.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = !debouncedSearch
+      || inf.estudiante?.nombre_completo.toLowerCase().includes(debouncedSearch.toLowerCase())
+      || inf.tipo_falta?.nombre.toLowerCase().includes(debouncedSearch.toLowerCase())
+      || inf.descripcion.toLowerCase().includes(debouncedSearch.toLowerCase())
     return matchSearch
       && (filterGravedad === "all" || inf.tipo_falta?.gravedad === filterGravedad)
       && (filterTipo === "all" || inf.tipo_falta_id === filterTipo)
-  }), [infracciones, search, filterGravedad, filterTipo])
+  }), [infracciones, debouncedSearch, filterGravedad, filterTipo])
 
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando infracciones...</div>
@@ -434,7 +468,12 @@ export default function AdminInfraccionesPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl font-bold text-foreground">Infracciones</h1>
-          <p className="text-muted-foreground text-sm mt-1">{infracciones.length} infracciones registradas en total</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {/* ✨ INDICADOR INTELIGENTE */}
+            {hasActiveFilters
+              ? `${filtered.length} de ${infracciones.length} infracciones`
+              : `${infracciones.length} infracciones más recientes`}
+          </p>
         </div>
         <Button
           onClick={() => setModalOpen(true)}
@@ -447,6 +486,7 @@ export default function AdminInfraccionesPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
+        {/* ✨ Input de búsqueda con indicador de debounce */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
@@ -455,7 +495,14 @@ export default function AdminInfraccionesPage() {
             onChange={e => setSearch(e.target.value)}
             className="pl-9"
           />
+          {/* ✨ Spinner mientras debounce */}
+          {search !== debouncedSearch && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="size-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+            </div>
+          )}
         </div>
+
         <Select value={filterGravedad} onValueChange={setFilterGravedad}>
           <SelectTrigger className="w-full sm:w-44 cursor-pointer">
             <Filter className="w-4 h-4 mr-2 text-gray-400" />
@@ -535,7 +582,7 @@ export default function AdminInfraccionesPage() {
         </Table>
       </div>
 
-      {/* Dialog detalle */}
+      {/* Dialog detalle (SIN CAMBIOS) */}
       <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -613,7 +660,7 @@ export default function AdminInfraccionesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirmar eliminar infracción */}
+      {/* Confirmar eliminar infracción (SIN CAMBIOS) */}
       <AlertDialog open={!!confirmDeleteInf} onOpenChange={open => !open && setConfirmDeleteInf(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

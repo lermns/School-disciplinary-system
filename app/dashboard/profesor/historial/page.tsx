@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { fetchInfraccionesProfesor, fetchTiposFalta, updateInfraccion } from "@/lib/data"
+import { useDebounce } from "@/lib/use-debounce"
 import { getGravedadConfig, formatDate, todayISO } from "@/lib/helpers"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Pencil, CheckCircle2 } from "lucide-react"
+import { Search, Pencil, CheckCircle2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { Infraccion, TipoFalta } from "@/lib/types"
 
@@ -22,6 +23,7 @@ function getInitials(name: string) {
     return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
 }
 
+// ── Modal de edición (SIN CAMBIOS) ──────────────────────────
 function EditarInfraccionModal({
     infraccion, tiposFalta, onClose, onSaved,
 }: {
@@ -153,6 +155,7 @@ function EditarInfraccionModal({
     )
 }
 
+// ── Página principal ───────────────────────────────────────
 export default function ProfesorHistorialPage() {
     const { user } = useAuth()
     const [infracciones, setInfracciones] = useState<Infraccion[]>([])
@@ -162,44 +165,88 @@ export default function ProfesorHistorialPage() {
     const [filterGravedad, setFilterGravedad] = useState("all")
     const [editando, setEditando] = useState<Infraccion | null>(null)
 
-    useEffect(() => {
-        if (!user?.id) return
-        Promise.all([
-            fetchInfraccionesProfesor(user.id),
-            fetchTiposFalta(),
-        ]).then(([infs, tipos]) => {
-            setInfracciones(infs); setTiposFalta(tipos); setLoading(false)
-        })
-    }, [user?.id])
+    // ✨ NUEVO: Debounce del search
+    const debouncedSearch = useDebounce(search, 400)
 
+    // ✨ NUEVO: Detectar si hay filtros activos
+    const hasActiveFilters = useMemo(() => {
+        return debouncedSearch.trim() !== "" || filterGravedad !== "all"
+    }, [debouncedSearch, filterGravedad])
+
+    const cargarDatos = useCallback(async () => {
+        if (!user?.id) return
+        setLoading(true)
+
+        // ✨ ESTRATEGIA INTELIGENTE:
+        // - Sin filtros → Solo últimas 100 infracciones del profesor
+        // - Con filtros → Cargar más para filtrar mejor (500 máx)
+        const limit = hasActiveFilters ? 500 : 100
+
+        const [infs, tipos] = await Promise.all([
+            fetchInfraccionesProfesor(user.id, limit),
+            fetchTiposFalta(),
+        ])
+
+        setInfracciones(infs)
+        setTiposFalta(tipos)
+        setLoading(false)
+    }, [user?.id, hasActiveFilters])
+
+    // ✨ NUEVO: Recargar cuando cambian los filtros
+    useEffect(() => {
+        cargarDatos()
+    }, [cargarDatos])
+
+    // ✨ OPTIMIZADO: Usar debouncedSearch
     const filtered = useMemo(() => infracciones.filter(inf => {
-        const matchSearch = !search
-            || inf.estudiante?.nombre_completo.toLowerCase().includes(search.toLowerCase())
-            || inf.tipo_falta?.nombre.toLowerCase().includes(search.toLowerCase())
-            || inf.descripcion.toLowerCase().includes(search.toLowerCase())
+        const matchSearch = !debouncedSearch
+            || inf.estudiante?.nombre_completo.toLowerCase().includes(debouncedSearch.toLowerCase())
+            || inf.tipo_falta?.nombre.toLowerCase().includes(debouncedSearch.toLowerCase())
+            || inf.descripcion.toLowerCase().includes(debouncedSearch.toLowerCase())
         return matchSearch && (filterGravedad === "all" || inf.tipo_falta?.gravedad === filterGravedad)
-    }), [infracciones, search, filterGravedad])
+    }), [infracciones, debouncedSearch, filterGravedad])
 
     const handleSaved = (updated: Infraccion) => {
         setInfracciones(prev => prev.map(i => i.id === updated.id ? updated : i))
     }
 
     if (loading) return (
-        <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando historial...</div>
+        <div className="flex items-center justify-center h-64 text-muted-foreground text-sm gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Cargando historial...
+        </div>
     )
 
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="font-serif text-2xl font-bold text-foreground">Mi Historial</h1>
-                <p className="text-sm text-muted-foreground">Infracciones que has registrado</p>
+                {/* ✨ NUEVO: Indicador inteligente */}
+                <p className="text-sm text-muted-foreground">
+                    {hasActiveFilters
+                        ? `${filtered.length} de ${infracciones.length} infracciones encontradas`
+                        : `${infracciones.length} infracciones registradas por ti`
+                    }
+                </p>
             </div>
 
             <Card>
                 <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                    {/* ✨ Input con spinner de debounce */}
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder="Buscar por estudiante, tipo o descripción..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+                        <Input
+                            placeholder="Buscar por estudiante, tipo o descripción..."
+                            className="pl-9"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                        {/* ✨ Spinner mientras debounce */}
+                        {search !== debouncedSearch && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <div className="size-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+                            </div>
+                        )}
                     </div>
                     <Select value={filterGravedad} onValueChange={setFilterGravedad}>
                         <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Gravedad" /></SelectTrigger>
@@ -215,7 +262,9 @@ export default function ProfesorHistorialPage() {
 
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-semibold">{filtered.length} registro{filtered.length !== 1 ? "s" : ""}</CardTitle>
+                    <CardTitle className="text-base font-semibold">
+                        {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
@@ -234,7 +283,9 @@ export default function ProfesorHistorialPage() {
                                 {filtered.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                                            {infracciones.length === 0 ? "No has registrado infracciones aún." : "No se encontraron registros."}
+                                            {infracciones.length === 0
+                                                ? "No has registrado infracciones aún."
+                                                : "No se encontraron registros con los filtros seleccionados."}
                                         </TableCell>
                                     </TableRow>
                                 ) : filtered.map(inf => {
@@ -243,7 +294,11 @@ export default function ProfesorHistorialPage() {
                                         <TableRow key={inf.id} className="group">
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">{inf.estudiante ? getInitials(inf.estudiante.nombre_completo) : "?"}</AvatarFallback></Avatar>
+                                                    <Avatar className="size-7">
+                                                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                                                            {inf.estudiante ? getInitials(inf.estudiante.nombre_completo) : "?"}
+                                                        </AvatarFallback>
+                                                    </Avatar>
                                                     <div>
                                                         <p className="text-sm font-medium">{inf.estudiante?.nombre_completo}</p>
                                                         <p className="text-xs text-muted-foreground">{inf.estudiante?.curso} {inf.estudiante?.seccion}</p>

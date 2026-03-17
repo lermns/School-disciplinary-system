@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { fetchEstudiantesProfesor, fetchTiposFalta, fetchInfracciones, createInfraccion } from "@/lib/data"
 import { getGravedadConfig, formatDate, todayISO } from "@/lib/helpers"
+import { useDebounce } from "@/lib/use-debounce"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Users, FileText, CheckCircle2, BookOpen, CalendarDays, X, AlertTriangle, Clock } from "lucide-react"
+import { Search, Users, FileText, CheckCircle2, BookOpen, CalendarDays, X, AlertTriangle, Clock, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 import type { Estudiante, TipoFalta, Infraccion } from "@/lib/types"
 
@@ -36,7 +37,7 @@ function matchesSearch(nombre: string, query: string): boolean {
     return terms.every(term => words.some(word => word.startsWith(term)))
 }
 
-// ── Modal registrar infracción (igual al del admin pero filtrado al profesor) ──
+// ── Modal registrar infracción (SIN CAMBIOS) ──────────────────
 function RegistrarInfraccionModal({
     open, onClose, onCreated, profesorId, estudiantes, tiposFalta, todasInfracciones,
 }: {
@@ -260,7 +261,7 @@ function RegistrarInfraccionModal({
     )
 }
 
-// ── Página principal del profesor ──────────────────────────
+// ── Página principal del profesor ──────────────────────────────
 export default function ProfesorDashboard() {
     const { user } = useAuth()
     const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
@@ -272,18 +273,24 @@ export default function ProfesorDashboard() {
     const [filterCurso, setFilterCurso] = useState("all")
     const [filterSeccion, setFilterSeccion] = useState("all")
 
-    const cargarDatos = async () => {
+    // ✨ NUEVO: Paginación
+    const [displayLimit, setDisplayLimit] = useState(50)
+
+    // ✨ NUEVO: Debounce del search
+    const debouncedSearch = useDebounce(search, 400)
+
+    const cargarDatos = useCallback(async () => {
         if (!user?.id) return
         const [ests, tipos, infs] = await Promise.all([
             fetchEstudiantesProfesor(user.id),
             fetchTiposFalta(),
-            fetchInfracciones(),
+            fetchInfracciones(100), // ✨ Solo últimas 100 infracciones
         ])
         setEstudiantes(ests); setTiposFalta(tipos); setTodasInfracciones(infs)
         setLoading(false)
-    }
+    }, [user?.id])
 
-    useEffect(() => { cargarDatos() }, [user?.id])
+    useEffect(() => { cargarDatos() }, [cargarDatos])
 
     const cursosUnicos = useMemo(() => {
         const set = new Set(estudiantes.map(e => e.curso))
@@ -295,17 +302,28 @@ export default function ProfesorDashboard() {
         return SECCIONES.filter(s => set.has(s))
     }, [estudiantes, filterCurso])
 
+    // ✨ OPTIMIZADO: Usar debouncedSearch en lugar de search
     const estudiantesFiltrados = useMemo(() =>
         estudiantes.filter(e => {
             if (filterCurso !== "all" && e.curso !== filterCurso) return false
             if (filterSeccion !== "all" && e.seccion !== filterSeccion) return false
-            return matchesSearch(e.nombre_completo, search)
-        }), [estudiantes, filterCurso, filterSeccion, search])
+            return matchesSearch(e.nombre_completo, debouncedSearch)
+        }), [estudiantes, filterCurso, filterSeccion, debouncedSearch])
+
+    // ✨ NUEVO: Estudiantes visibles (con límite de paginación)
+    const estudiantesVisibles = useMemo(() =>
+        estudiantesFiltrados.slice(0, displayLimit),
+        [estudiantesFiltrados, displayLimit])
 
     // Infracciones que registró este profesor
     const misInfracciones = useMemo(() =>
         todasInfracciones.filter(i => i.regente_id === user?.id),
         [todasInfracciones, user?.id])
+
+    // ✨ NUEVO: Handler para cargar más
+    const cargarMas = () => {
+        setDisplayLimit(prev => prev + 50)
+    }
 
     if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando...</div>
 
@@ -347,18 +365,30 @@ export default function ProfesorDashboard() {
 
             {/* Filtros */}
             <div className="flex flex-col sm:flex-row gap-3">
+                {/* ✨ Input con spinner de debounce */}
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input placeholder="Buscar estudiante..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+                    <Input
+                        placeholder="Buscar estudiante..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        className="pl-9"
+                    />
+                    {/* ✨ Spinner mientras debounce */}
+                    {search !== debouncedSearch && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="size-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+                        </div>
+                    )}
                 </div>
-                <Select value={filterCurso} onValueChange={v => { setFilterCurso(v); setFilterSeccion("all") }}>
+                <Select value={filterCurso} onValueChange={v => { setFilterCurso(v); setFilterSeccion("all"); setDisplayLimit(50) }}>
                     <SelectTrigger className="w-full sm:w-40 cursor-pointer"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todos los cursos</SelectItem>
                         {cursosUnicos.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <Select value={filterSeccion} onValueChange={setFilterSeccion}>
+                <Select value={filterSeccion} onValueChange={v => { setFilterSeccion(v); setDisplayLimit(50) }}>
                     <SelectTrigger className="w-full sm:w-36 cursor-pointer"><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todas las secciones</SelectItem>
@@ -370,7 +400,13 @@ export default function ProfesorDashboard() {
             {/* Tabla de estudiantes */}
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-semibold">{estudiantesFiltrados.length} estudiante{estudiantesFiltrados.length !== 1 ? "s" : ""}</CardTitle>
+                    {/* ✨ Contador mejorado */}
+                    <CardTitle className="text-base font-semibold">
+                        {estudiantesFiltrados.length === estudiantesVisibles.length
+                            ? `${estudiantesFiltrados.length} estudiante${estudiantesFiltrados.length !== 1 ? "s" : ""}`
+                            : `Mostrando ${estudiantesVisibles.length} de ${estudiantesFiltrados.length} estudiantes`
+                        }
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
@@ -384,9 +420,9 @@ export default function ProfesorDashboard() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {estudiantesFiltrados.length === 0 ? (
+                                {estudiantesVisibles.length === 0 ? (
                                     <TableRow><TableCell colSpan={4} className="py-12 text-center text-muted-foreground text-sm">No se encontraron estudiantes</TableCell></TableRow>
-                                ) : estudiantesFiltrados.map(est => {
+                                ) : estudiantesVisibles.map(est => {
                                     const infs = todasInfracciones.filter(i => i.estudiante_id === est.id)
                                     const graves = infs.filter(i => i.tipo_falta?.gravedad === "grave" || i.tipo_falta?.gravedad === "muy_grave").length
                                     return (
@@ -413,6 +449,20 @@ export default function ProfesorDashboard() {
                             </TableBody>
                         </Table>
                     </div>
+
+                    {/* ✨ Botón "Cargar más" */}
+                    {estudiantesVisibles.length < estudiantesFiltrados.length && (
+                        <div className="flex justify-center py-4 border-t">
+                            <Button
+                                onClick={cargarMas}
+                                variant="outline"
+                                className="gap-2"
+                            >
+                                <ChevronDown className="w-4 h-4" />
+                                Mostrar 50 más ({estudiantesFiltrados.length - estudiantesVisibles.length} restantes)
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

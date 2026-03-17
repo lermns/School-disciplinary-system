@@ -326,3 +326,262 @@ export async function deleteInfraccion(id: string): Promise<string | null> {
   const json = await res.json();
   return json.ok ? null : (json.error ?? 'Error desconocido');
 }
+// ============================================
+// FUNCIONES CORREGIDAS PARA lib/data.ts
+// COPIAR AL FINAL DEL ARCHIVO (después de deleteInfraccion)
+// ============================================
+
+/**
+ * Fetch infracciones con paginación para el dashboard del REGENTE
+ * Incluye filtros por gravedad, tipo y búsqueda
+ */
+export async function fetchInfraccionesRegentePaginadas(
+  page = 1,
+  limit = 50,
+  filters?: {
+    gravedad?: string;
+    tipo?: string;
+    search?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
+  },
+): Promise<{ data: Infraccion[]; total: number; hasMore: boolean }> {
+  const supabase = createClient(); // ✅ CORREGIDO
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  let query = supabase
+    .from('infracciones')
+    .select(INF_SELECT, { count: 'exact' })
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  // Aplicar filtros
+  if (filters?.tipo && filters.tipo !== 'all') {
+    query = query.eq('tipo_falta_id', filters.tipo);
+  }
+
+  if (filters?.search) {
+    // El filtro de búsqueda se aplicará después en cliente
+  }
+
+  if (filters?.fechaDesde) {
+    query = query.gte('fecha', filters.fechaDesde);
+  }
+
+  if (filters?.fechaHasta) {
+    query = query.lte('fecha', filters.fechaHasta);
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('Error fetching infracciones regente:', error);
+    return { data: [], total: 0, hasMore: false };
+  }
+
+  let infracciones = (data ?? []).map(mapInfraccion);
+
+  // Filtrado en cliente (gravedad y búsqueda)
+  if (filters?.gravedad && filters.gravedad !== 'all') {
+    infracciones = infracciones.filter((inf) => inf.tipo_falta?.gravedad === filters.gravedad);
+  }
+
+  if (filters?.search) {
+    const searchLower = filters.search.toLowerCase();
+    infracciones = infracciones.filter(
+      (inf) =>
+        inf.estudiante?.nombre_completo.toLowerCase().includes(searchLower) ||
+        inf.descripcion.toLowerCase().includes(searchLower),
+    );
+  }
+
+  const total = count ?? 0;
+  const hasMore = to < total - 1;
+
+  return { data: infracciones, total, hasMore };
+}
+
+/**
+ * Fetch infracciones con paginación para el dashboard del PROFESOR
+ * Solo muestra las infracciones registradas por ese profesor
+ */
+export async function fetchInfraccionesProfesorPaginadas(
+  profesorId: string,
+  page = 1,
+  limit = 50,
+  filters?: {
+    gravedad?: string;
+    curso?: string;
+    search?: string;
+  },
+): Promise<{ data: Infraccion[]; total: number; hasMore: boolean }> {
+  const supabase = createClient(); // ✅ CORREGIDO
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  let query = supabase
+    .from('infracciones')
+    .select(INF_SELECT, { count: 'exact' })
+    .eq('registrado_por', profesorId)
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('Error fetching infracciones profesor:', error);
+    return { data: [], total: 0, hasMore: false };
+  }
+
+  let infracciones = (data ?? []).map(mapInfraccion);
+
+  // Filtrado en cliente (gravedad, curso y búsqueda)
+  if (filters?.gravedad && filters.gravedad !== 'all') {
+    infracciones = infracciones.filter((inf) => inf.tipo_falta?.gravedad === filters.gravedad);
+  }
+
+  if (filters?.curso && filters.curso !== 'all') {
+    infracciones = infracciones.filter((inf) => inf.estudiante?.curso === filters.curso);
+  }
+
+  if (filters?.search) {
+    const searchLower = filters.search.toLowerCase();
+    infracciones = infracciones.filter(
+      (inf) =>
+        inf.estudiante?.nombre_completo.toLowerCase().includes(searchLower) ||
+        inf.descripcion.toLowerCase().includes(searchLower),
+    );
+  }
+
+  const total = count ?? 0;
+  const hasMore = to < total - 1;
+
+  return { data: infracciones, total, hasMore };
+}
+
+/**
+ * Fetch estudiantes con paginación para el modal de REGISTRAR INFRACCIÓN
+ * Usado por profesores y regente al buscar estudiante
+ */
+export async function fetchEstudiantesModalPaginados(
+  page = 1,
+  limit = 30,
+  filters?: {
+    curso?: string;
+    seccion?: string;
+    search?: string;
+  },
+): Promise<{ data: Estudiante[]; total: number; hasMore: boolean }> {
+  const supabase = createClient(); // ✅ CORREGIDO
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  let query = supabase
+    .from('estudiantes')
+    .select('*', { count: 'exact' })
+    .eq('activo', true)
+    .order('nombre_completo', { ascending: true });
+
+  // Aplicar filtros
+  if (filters?.curso && filters.curso !== 'all') {
+    query = query.eq('curso', filters.curso);
+  }
+
+  if (filters?.seccion && filters.seccion !== 'all') {
+    query = query.eq('seccion', filters.seccion);
+  }
+
+  if (filters?.search && filters.search.length >= 2) {
+    query = query.ilike('nombre_completo', `%${filters.search}%`);
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('Error fetching estudiantes modal:', error);
+    return { data: [], total: 0, hasMore: false };
+  }
+
+  const total = count ?? 0;
+  const hasMore = to < total - 1;
+
+  return { data: (data ?? []) as Estudiante[], total, hasMore };
+}
+
+/**
+ * Fetch infracciones con paginación para el dashboard de ADMIN
+ * Vista completa con todos los filtros posibles
+ */
+export async function fetchInfraccionesAdminPaginadas(
+  page = 1,
+  limit = 50,
+  filters?: {
+    gravedad?: string;
+    tipo?: string;
+    curso?: string;
+    registrador?: string;
+    search?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
+  },
+): Promise<{ data: Infraccion[]; total: number; hasMore: boolean }> {
+  const supabase = createClient(); // ✅ CORREGIDO
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  let query = supabase
+    .from('infracciones')
+    .select(INF_SELECT, { count: 'exact' })
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  // Aplicar filtros en BD
+  if (filters?.tipo && filters.tipo !== 'all') {
+    query = query.eq('tipo_falta_id', filters.tipo);
+  }
+
+  if (filters?.registrador && filters.registrador !== 'all') {
+    query = query.eq('registrado_por', filters.registrador);
+  }
+
+  if (filters?.fechaDesde) {
+    query = query.gte('fecha', filters.fechaDesde);
+  }
+
+  if (filters?.fechaHasta) {
+    query = query.lte('fecha', filters.fechaHasta);
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('Error fetching infracciones admin:', error);
+    return { data: [], total: 0, hasMore: false };
+  }
+
+  let infracciones = (data ?? []).map(mapInfraccion);
+
+  // Filtrado en cliente (gravedad, curso y búsqueda)
+  if (filters?.gravedad && filters.gravedad !== 'all') {
+    infracciones = infracciones.filter((inf) => inf.tipo_falta?.gravedad === filters.gravedad);
+  }
+
+  if (filters?.curso && filters.curso !== 'all') {
+    infracciones = infracciones.filter((inf) => inf.estudiante?.curso === filters.curso);
+  }
+
+  if (filters?.search) {
+    const searchLower = filters.search.toLowerCase();
+    infracciones = infracciones.filter(
+      (inf) =>
+        inf.estudiante?.nombre_completo.toLowerCase().includes(searchLower) ||
+        inf.descripcion.toLowerCase().includes(searchLower),
+    );
+  }
+
+  const total = count ?? 0;
+  const hasMore = to < total - 1;
+
+  return { data: infracciones, total, hasMore };
+}

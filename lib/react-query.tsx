@@ -13,6 +13,8 @@ export function ReactQueryProvider({ children }: { children: ReactNode }) {
                         staleTime: 60 * 1000, // 1 minuto - los datos se consideran "frescos"
                         gcTime: 5 * 60 * 1000, // 5 minutos - tiempo en cache después de no usarse
                         refetchOnWindowFocus: false, // No refetch al cambiar de pestaña
+                        refetchOnMount: false, //  AGREGAR: No refetch al remontar componente
+                        refetchOnReconnect: false, //  AGREGAR: No refetch al reconectar internet
                         retry: 1, // Solo 1 reintento si falla
                     },
                 },

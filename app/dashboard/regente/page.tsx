@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { fetchEstudiantes, fetchTiposFalta, fetchInfracciones } from "@/lib/data"
 import type { Estudiante, TipoFalta, Infraccion } from "@/lib/types"
+import { useDebounce } from "@/lib/use-debounce"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, Clock, Users, AlertTriangle } from "lucide-react"
+import { Search, Clock, Users, AlertTriangle, ChevronDown } from "lucide-react"
 import { RegistrarInfraccionModal } from "@/components/regente/registrar-infraccion-modal"
 import { useAuth } from "@/lib/auth-context"
 import { getGravedadConfig } from "@/lib/helpers"
@@ -28,26 +30,50 @@ export default function RegenteDashboard() {
   const [modalOpen, setModalOpen] = useState(false)
   const [tiposDialogOpen, setTiposDialogOpen] = useState(false)
 
-  const cargarDatos = async () => {
+  // ✨ NUEVO: Paginación
+  const [displayLimit, setDisplayLimit] = useState(50)
+
+  // ✨ NUEVO: Debounce del search
+  const debouncedSearch = useDebounce(search, 400)
+
+  const cargarDatos = useCallback(async () => {
     const [ests, tipos, infs] = await Promise.all([
       fetchEstudiantes(true),
       fetchTiposFalta(),
-      fetchInfracciones(),
+      fetchInfracciones(100), // ✨ Solo últimas 100 infracciones
     ])
     setEstudiantes(ests)
     setTiposDisponibles(tipos.filter(tf => tf.asignadoRegente && tf.gravedad === "leve"))
     setTodasInfracciones(infs)
     setLoading(false)
+  }, [])
+
+  useEffect(() => { cargarDatos() }, [cargarDatos])
+
+  // ✨ OPTIMIZADO: Usar debouncedSearch
+  const filtered = useMemo(() => estudiantes.filter(e => {
+    const matchSearch = !debouncedSearch ||
+      e.nombre_completo.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      e.curso.toLowerCase().includes(debouncedSearch.toLowerCase())
+    return matchSearch &&
+      (filterCurso === "all" || e.curso === filterCurso) &&
+      (filterSeccion === "all" || e.seccion === filterSeccion)
+  }), [estudiantes, debouncedSearch, filterCurso, filterSeccion])
+
+  // ✨ NUEVO: Estudiantes visibles (con límite de paginación)
+  const estudiantesVisibles = useMemo(() =>
+    filtered.slice(0, displayLimit),
+    [filtered, displayLimit])
+
+  const abrirModal = (est: Estudiante) => {
+    setEstudianteSeleccionado(est)
+    setModalOpen(true)
   }
 
-  useEffect(() => { cargarDatos() }, [])
-
-  const filtered = useMemo(() => estudiantes.filter(e => {
-    const matchSearch = !search || e.nombre_completo.toLowerCase().includes(search.toLowerCase()) || e.curso.toLowerCase().includes(search.toLowerCase())
-    return matchSearch && (filterCurso === "all" || e.curso === filterCurso) && (filterSeccion === "all" || e.seccion === filterSeccion)
-  }), [estudiantes, search, filterCurso, filterSeccion])
-
-  const abrirModal = (est: Estudiante) => { setEstudianteSeleccionado(est); setModalOpen(true) }
+  // ✨ NUEVO: Handler para cargar más
+  const cargarMas = () => {
+    setDisplayLimit(prev => prev + 50)
+  }
 
   if (loading) return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Cargando...</div>
 
@@ -76,19 +102,32 @@ export default function RegenteDashboard() {
         </div>
       </div>
 
+      {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
+        {/* ✨ Input con spinner de debounce */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input placeholder="Buscar estudiante..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <Input
+            placeholder="Buscar estudiante..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9"
+          />
+          {/* ✨ Spinner mientras debounce */}
+          {search !== debouncedSearch && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="size-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+            </div>
+          )}
         </div>
-        <Select value={filterCurso} onValueChange={setFilterCurso}>
+        <Select value={filterCurso} onValueChange={v => { setFilterCurso(v); setDisplayLimit(50) }}>
           <SelectTrigger className="w-full sm:w-44 cursor-pointer"><SelectValue placeholder="Todos los cursos" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los cursos</SelectItem>
             {CURSOS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterSeccion} onValueChange={setFilterSeccion}>
+        <Select value={filterSeccion} onValueChange={v => { setFilterSeccion(v); setDisplayLimit(50) }}>
           <SelectTrigger className="w-full sm:w-36 cursor-pointer"><SelectValue placeholder="Sección" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Secciones</SelectItem>
@@ -97,12 +136,23 @@ export default function RegenteDashboard() {
         </Select>
       </div>
 
+      {/* ✨ Contador mejorado */}
+      {filtered.length > 0 && (
+        <div className="text-sm text-muted-foreground">
+          {filtered.length === estudiantesVisibles.length
+            ? `${filtered.length} estudiante${filtered.length !== 1 ? 's' : ''}`
+            : `Mostrando ${estudiantesVisibles.length} de ${filtered.length} estudiantes`
+          }
+        </div>
+      )}
+
+      {/* Grid de estudiantes */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.length === 0 ? (
+        {estudiantesVisibles.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-400">
             {estudiantes.length === 0 ? "No hay estudiantes registrados aún" : "No se encontraron estudiantes"}
           </div>
-        ) : filtered.map(est => {
+        ) : estudiantesVisibles.map(est => {
           const retrasos = todasInfracciones.filter(i => i.estudiante_id === est.id && i.tipo_falta?.nombre === "Retraso").length
           return (
             <div key={est.id} onClick={() => abrirModal(est)}
@@ -125,6 +175,21 @@ export default function RegenteDashboard() {
         })}
       </div>
 
+      {/* ✨ Botón "Cargar más" */}
+      {estudiantesVisibles.length < filtered.length && (
+        <div className="flex justify-center">
+          <Button
+            onClick={cargarMas}
+            variant="outline"
+            className="gap-2"
+          >
+            <ChevronDown className="w-4 h-4" />
+            Mostrar 50 más ({filtered.length - estudiantesVisibles.length} restantes)
+          </Button>
+        </div>
+      )}
+
+      {/* Dialog de tipos de falta (SIN CAMBIOS) */}
       <Dialog open={tiposDialogOpen} onOpenChange={setTiposDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle className="text-base">Faltas disponibles para registrar</DialogTitle></DialogHeader>
@@ -147,6 +212,7 @@ export default function RegenteDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de registro (SIN CAMBIOS) */}
       {estudianteSeleccionado && (
         <RegistrarInfraccionModal
           open={modalOpen}
