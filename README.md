@@ -351,4 +351,4 @@ Estas funcionalidades están previstas para iteraciones futuras sobre el MVP act
 
 **Leonardo Ramos** — © 2026 Todos los derechos reservados.
 
-Desarrollado para el **Módulo Educativo El Dorado**, Santa Cruz - Bolivia.
+Desarrollado para el **Módulo Educativo El Dorado**, Santa Cruz de la Sierra - Bolivia. 
